@@ -18,6 +18,8 @@ public record UpdateProxyRequest(
     string Description
 );
 
+public record EnableRequest(int? DurationMinutes);
+
 public record ProxyResponse(
     int Id,
     string Name,
@@ -31,5 +33,6 @@ public record ProxyResponse(
     string RemoteAddr,
     string ErrorMsg,
     DateTime CreatedAt,
-    DateTime? UpdatedAt
+    DateTime? UpdatedAt,
+    DateTime? ExpiresAt
 );

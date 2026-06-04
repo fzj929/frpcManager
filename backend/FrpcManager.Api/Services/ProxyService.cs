@@ -79,15 +79,18 @@ public class ProxyService
         return true;
     }
 
-    public async Task<(bool Success, string Message)> SetEnabledAsync(int id, bool enabled)
+    public async Task<(bool Success, string Message)> SetEnabledAsync(int id, bool enabled, int? durationMinutes = null)
     {
         var proxy = await _db.Proxies.FindAsync(id);
         if (proxy == null) return (false, "通道不存在");
 
         proxy.IsEnabled = enabled;
         proxy.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+        proxy.ExpiresAt = enabled && durationMinutes.HasValue
+            ? DateTime.UtcNow.AddMinutes(durationMinutes.Value)
+            : null;
 
+        await _db.SaveChangesAsync();
         return await SyncToFrpcAsync();
     }
 
@@ -177,7 +180,7 @@ public class ProxyService
             p.Id, p.Name, p.Type, p.LocalIP, p.LocalPort, p.RemotePort,
             p.Description, p.IsEnabled, status,
             s?.RemoteAddr ?? "", s?.Error ?? "",
-            p.CreatedAt, p.UpdatedAt
+            p.CreatedAt, p.UpdatedAt, p.ExpiresAt
         );
     }
 }

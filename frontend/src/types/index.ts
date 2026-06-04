@@ -12,6 +12,7 @@ export interface Proxy {
   errorMsg: string
   createdAt: string
   updatedAt: string | null
+  expiresAt: string | null
 }
 
 export interface FrpcConfig {

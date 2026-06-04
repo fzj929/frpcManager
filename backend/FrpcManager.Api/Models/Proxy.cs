@@ -10,6 +10,7 @@ public class Proxy
     public int RemotePort { get; set; }
     public string Description { get; set; } = "";
     public bool IsEnabled { get; set; } = false;
+    public DateTime? ExpiresAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 }

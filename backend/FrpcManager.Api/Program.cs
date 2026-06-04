@@ -53,6 +53,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ProxyService>();
 builder.Services.AddScoped<FrpcApiService>();
 builder.Services.AddSingleton<TomlService>();
+builder.Services.AddHostedService<ChannelExpiryService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -66,6 +67,10 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
+
+    // Add ExpiresAt column for upgrades from older versions
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Proxies ADD COLUMN ExpiresAt TEXT NULL"); }
+    catch { /* Column already exists */ }
 
     if (!db.Users.Any())
     {
