@@ -1,0 +1,280 @@
+<template>
+  <div class="settings-page">
+    <h2>系统设置</h2>
+
+    <el-row :gutter="24">
+      <!-- frpc Server Config -->
+      <el-col :xs="24" :lg="14">
+        <el-card class="settings-card">
+          <template #header>
+            <div class="card-header">
+              <el-icon><Setting /></el-icon>
+              <span>frpc 服务器配置</span>
+            </div>
+          </template>
+
+          <el-form
+            ref="configFormRef"
+            :model="configForm"
+            :rules="configRules"
+            label-width="140px"
+            v-loading="configLoading"
+          >
+            <el-form-item label="服务器地址" prop="serverAddr">
+              <el-input v-model="configForm.serverAddr" placeholder="例如：soft.mybips.com" />
+              <div class="form-hint">frp 服务端的域名或 IP 地址</div>
+            </el-form-item>
+            <el-form-item label="服务器端口" prop="serverPort">
+              <el-input-number
+                v-model="configForm.serverPort"
+                :min="1" :max="65535"
+                style="width: 100%"
+              />
+              <div class="form-hint">frp 服务端监听的端口，默认 7000</div>
+            </el-form-item>
+            <el-form-item label="认证方式" prop="authMethod">
+              <el-select v-model="configForm.authMethod" style="width: 100%">
+                <el-option label="Token 认证" value="token" />
+                <el-option label="无认证" value="" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="认证 Token" prop="authToken">
+              <el-input
+                v-model="configForm.authToken"
+                type="password"
+                show-password
+                placeholder="与服务端配置保持一致"
+              />
+              <div class="form-hint">frp 服务端设置的 token，需与服务端一致</div>
+            </el-form-item>
+            <el-divider content-position="left" style="font-size: 13px">Web 管理界面</el-divider>
+            <el-form-item label="监听地址" prop="webServerAddr">
+              <el-input v-model="configForm.webServerAddr" placeholder="127.0.0.1" />
+              <div class="form-hint">frpc 内置 Web 服务的监听地址</div>
+            </el-form-item>
+            <el-form-item label="监听端口" prop="webServerPort">
+              <el-input-number
+                v-model="configForm.webServerPort"
+                :min="1" :max="65535"
+                style="width: 100%"
+              />
+              <div class="form-hint">frpc 内置 Web 服务的监听端口，默认 7400</div>
+            </el-form-item>
+            <el-form-item>
+              <el-button
+                type="primary"
+                :loading="configSaving"
+                @click="saveConfig"
+                :icon="Check"
+              >
+                保存并重新加载
+              </el-button>
+              <el-button @click="reloadFrpcNow" :loading="reloading" :icon="Refresh">
+                仅重新加载
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </el-card>
+      </el-col>
+
+      <!-- Password & Info -->
+      <el-col :xs="24" :lg="10">
+        <el-card class="settings-card" style="margin-bottom: 20px">
+          <template #header>
+            <div class="card-header">
+              <el-icon><Lock /></el-icon>
+              <span>账号安全</span>
+            </div>
+          </template>
+
+          <el-form
+            ref="pwdFormRef"
+            :model="pwdForm"
+            :rules="pwdRules"
+            label-width="100px"
+          >
+            <el-form-item label="当前密码" prop="currentPassword">
+              <el-input v-model="pwdForm.currentPassword" type="password" show-password />
+            </el-form-item>
+            <el-form-item label="新密码" prop="newPassword">
+              <el-input v-model="pwdForm.newPassword" type="password" show-password />
+            </el-form-item>
+            <el-form-item label="确认新密码" prop="confirmPassword">
+              <el-input v-model="pwdForm.confirmPassword" type="password" show-password />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" :loading="pwdSaving" @click="changePassword">
+                修改密码
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </el-card>
+
+        <el-card class="settings-card">
+          <template #header>
+            <div class="card-header">
+              <el-icon><InfoFilled /></el-icon>
+              <span>关于</span>
+            </div>
+          </template>
+          <el-descriptions :column="1">
+            <el-descriptions-item label="版本">v1.0.0</el-descriptions-item>
+            <el-descriptions-item label="后端">ASP.NET Core 8.0</el-descriptions-item>
+            <el-descriptions-item label="前端">Vue 3 + Element Plus</el-descriptions-item>
+            <el-descriptions-item label="数据库">SQLite</el-descriptions-item>
+            <el-descriptions-item label="frpc API">
+              <el-link
+                type="primary"
+                href="http://127.0.0.1:7400"
+                target="_blank"
+              >
+                http://127.0.0.1:7400
+              </el-link>
+            </el-descriptions-item>
+          </el-descriptions>
+        </el-card>
+      </el-col>
+    </el-row>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { Setting, Lock, InfoFilled, Check, Refresh } from '@element-plus/icons-vue'
+import { fetchConfig, saveConfig as apiSaveConfig, reloadFrpc as apiReload, authChangePassword } from '@/api'
+import type { FrpcConfig } from '@/types'
+
+// Config form
+const configFormRef = ref<FormInstance>()
+const configLoading = ref(false)
+const configSaving = ref(false)
+const reloading = ref(false)
+
+const configForm = reactive<FrpcConfig>({
+  serverAddr: '',
+  serverPort: 7000,
+  authMethod: 'token',
+  authToken: '',
+  webServerAddr: '127.0.0.1',
+  webServerPort: 7400
+})
+
+const configRules: FormRules = {
+  serverAddr: [{ required: true, message: '请输入服务器地址', trigger: 'blur' }],
+  serverPort: [{ required: true, type: 'number', message: '请输入服务器端口', trigger: 'blur' }]
+}
+
+async function loadConfig() {
+  configLoading.value = true
+  try {
+    const res = await fetchConfig()
+    Object.assign(configForm, res.data)
+  } catch {
+    ElMessage.warning('无法从 frpc 获取配置，frpc 可能未运行')
+  } finally {
+    configLoading.value = false
+  }
+}
+
+async function saveConfig() {
+  if (!await configFormRef.value?.validate().catch(() => false)) return
+  configSaving.value = true
+  try {
+    await apiSaveConfig(configForm)
+    ElMessage.success('配置已保存并重新加载')
+  } catch (err: unknown) {
+    const msg = (err as { response?: { data?: { message?: string } } })
+      ?.response?.data?.message ?? '保存失败'
+    ElMessage.error(msg)
+  } finally {
+    configSaving.value = false
+  }
+}
+
+async function reloadFrpcNow() {
+  reloading.value = true
+  try {
+    await apiReload()
+    ElMessage.success('frpc 已重新加载')
+  } catch {
+    ElMessage.error('重新加载失败')
+  } finally {
+    reloading.value = false
+  }
+}
+
+// Password form
+const pwdFormRef = ref<FormInstance>()
+const pwdSaving = ref(false)
+const pwdForm = reactive({
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
+const pwdRules: FormRules = {
+  currentPassword: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, message: '密码不能少于 6 个字符', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请确认新密码', trigger: 'blur' },
+    {
+      validator: (_rule, value, callback) => {
+        if (value !== pwdForm.newPassword) callback(new Error('两次输入的密码不一致'))
+        else callback()
+      },
+      trigger: 'blur'
+    }
+  ]
+}
+
+async function changePassword() {
+  if (!await pwdFormRef.value?.validate().catch(() => false)) return
+  pwdSaving.value = true
+  try {
+    await authChangePassword(pwdForm.currentPassword, pwdForm.newPassword)
+    ElMessage.success('密码修改成功')
+    pwdForm.currentPassword = ''
+    pwdForm.newPassword = ''
+    pwdForm.confirmPassword = ''
+  } catch (err: unknown) {
+    const msg = (err as { response?: { data?: { message?: string } } })
+      ?.response?.data?.message ?? '密码修改失败'
+    ElMessage.error(msg)
+  } finally {
+    pwdSaving.value = false
+  }
+}
+
+onMounted(loadConfig)
+</script>
+
+<style scoped>
+.settings-page h2 {
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 20px;
+}
+
+.settings-card {
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.form-hint {
+  font-size: 12px;
+  color: #aaa;
+  margin-top: 4px;
+}
+</style>

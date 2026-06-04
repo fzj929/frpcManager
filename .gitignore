@@ -1,0 +1,23 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+frpcmanager.db
+frpcmanager.db-shm
+frpcmanager.db-wal
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+backend/FrpcManager.Api/wwwroot/
+
+# Env / secrets
+appsettings.Production.json
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
