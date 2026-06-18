@@ -98,9 +98,9 @@ start-dev.bat
 | 地址 | 说明 |
 |------|------|
 | http://localhost:5173 | 前端管理界面 |
-| http://localhost:6665 | 后端 API（HTTP） |
-| https://localhost:6666 | 后端 API（HTTPS） |
-| https://localhost:6666/swagger | Swagger 接口文档 |
+| http://localhost:6887 | 后端 API（HTTP） |
+| https://localhost:6888 | 后端 API（HTTPS） |
+| https://localhost:6888/swagger | Swagger 接口文档 |
 
 > **默认账号**：`admin` / `admin123`（首次登录后请及时修改密码）
 
@@ -171,9 +171,9 @@ chmod +x start-publish-linux.bat
 
 | 地址 | 说明 |
 |------|------|
-| http://localhost:6665 | 后端 API（HTTP） |
-| https://localhost:6666 | 后端 API（HTTPS，自签名证书） |
-| https://localhost:6666/swagger | Swagger 接口文档 |
+| http://localhost:6887 | 后端 API（HTTP） |
+| https://localhost:6888 | 后端 API（HTTPS，自签名证书） |
+| https://localhost:6888/swagger | Swagger 接口文档 |
 
 也可以手动执行发布流程：
 
@@ -189,7 +189,7 @@ dotnet publish -c Release -o ./publish
 # 3. 运行（前后端一体）
 cd publish
 dotnet FrpcManager.Api.dll
-# 访问 http://0.0.0.0:6665 或 https://0.0.0.0:6666
+# 访问 http://0.0.0.0:6887 或 https://0.0.0.0:6888
 ```
 
 ---

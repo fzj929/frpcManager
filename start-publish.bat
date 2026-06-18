@@ -44,8 +44,8 @@ if errorlevel 1 goto fail
 
 echo.
 echo [5/5] Start published backend...
-echo   HTTP : http://localhost:6665
-echo   HTTPS: https://localhost:6666
+echo   HTTP : http://localhost:6887
+echo   HTTPS: https://localhost:6888
 echo.
 cd /d "%PUBLISH_DIR%"
 set "ASPNETCORE_ENVIRONMENT=Production"

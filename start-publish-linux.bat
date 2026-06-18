@@ -42,8 +42,8 @@ dotnet publish -c Release -o "$PUBLISH_DIR"
 
 echo
 echo "[5/5] Start published backend..."
-echo "  HTTP : http://localhost:6665"
-echo "  HTTPS: https://localhost:6666"
+echo "  HTTP : http://localhost:6887"
+echo "  HTTPS: https://localhost:6888"
 echo
 
 cd "$PUBLISH_DIR"
