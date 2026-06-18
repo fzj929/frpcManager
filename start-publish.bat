@@ -19,12 +19,12 @@ if errorlevel 1 goto fail
 echo.
 echo [2/5] Install frontend dependencies...
 cd /d "%FRONTEND_DIR%"
-npm install
+call npm install
 if errorlevel 1 goto fail
 
 echo.
 echo [3/5] Build frontend...
-npm run build
+call npm run build
 if errorlevel 1 goto fail
 
 echo.
