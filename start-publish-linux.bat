@@ -5,6 +5,13 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 FRONTEND_DIR="$ROOT/frontend"
 BACKEND_DIR="$ROOT/backend/FrpcManager.Api"
 PUBLISH_DIR="$BACKEND_DIR/publish"
+SKIP_PULL=0
+
+case "${1:-}" in
+  --no-pull|/no-pull|nopull)
+    SKIP_PULL=1
+    ;;
+esac
 
 echo "==================================="
 echo "  FrpcManager publish and start"
@@ -12,8 +19,12 @@ echo "==================================="
 echo
 
 cd "$ROOT"
-echo "[1/5] Pull latest code..."
-git pull
+if [ "$SKIP_PULL" = "1" ]; then
+  echo "[1/5] Skip pulling latest code."
+else
+  echo "[1/5] Pull latest code..."
+  git pull
+fi
 
 echo
 echo "[2/5] Install frontend dependencies..."

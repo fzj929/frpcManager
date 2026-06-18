@@ -5,6 +5,11 @@ set "ROOT=%~dp0"
 set "FRONTEND_DIR=%ROOT%frontend"
 set "BACKEND_DIR=%ROOT%backend\FrpcManager.Api"
 set "PUBLISH_DIR=%BACKEND_DIR%\publish"
+set "SKIP_PULL=0"
+
+if /I "%~1"=="--no-pull" set "SKIP_PULL=1"
+if /I "%~1"=="/no-pull" set "SKIP_PULL=1"
+if /I "%~1"=="nopull" set "SKIP_PULL=1"
 
 echo ===================================
 echo   FrpcManager publish and start
@@ -12,9 +17,13 @@ echo ===================================
 echo.
 
 cd /d "%ROOT%"
-echo [1/5] Pull latest code...
-git pull
-if errorlevel 1 goto fail
+if "%SKIP_PULL%"=="1" (
+    echo [1/5] Skip pulling latest code.
+) else (
+    echo [1/5] Pull latest code...
+    git pull
+    if errorlevel 1 goto fail
+)
 
 echo.
 echo [2/5] Install frontend dependencies...
