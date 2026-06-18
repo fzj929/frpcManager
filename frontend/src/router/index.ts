@@ -30,6 +30,11 @@ const router = createRouter({
           component: () => import('@/views/ProxiesView.vue')
         },
         {
+          path: 'wake',
+          name: 'WakeOnLan',
+          component: () => import('@/views/WakeOnLanView.vue')
+        },
+        {
           path: 'settings',
           name: 'Settings',
           component: () => import('@/views/SettingsView.vue')

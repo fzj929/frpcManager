@@ -38,3 +38,16 @@ export interface LoginResponse {
   username: string
   expiresAt: string
 }
+
+export interface WakeOnLanRequest {
+  macAddress: string
+  broadcastAddress: string
+  port: number
+}
+
+export interface WakeOnLanResponse {
+  macAddress: string
+  broadcastAddress: string
+  port: number
+  message: string
+}

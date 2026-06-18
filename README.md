@@ -125,6 +125,7 @@ start-dev.bat
 | `PUT` | `/api/config` | 更新 frpc 服务器配置并 reload |
 | `GET` | `/api/config/status` | 获取 frpc 实时通道状态 |
 | `POST` | `/api/config/reload` | 手动触发 frpc reload |
+| `POST` | `/api/wake-on-lan` | 根据 MAC 地址发送 Wake-on-LAN 魔术数据包 |
 
 ---
 

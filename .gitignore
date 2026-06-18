@@ -10,6 +10,7 @@ frpcmanager.db-wal
 
 # Frontend
 frontend/node_modules/
+frontend/.npm-cache/
 frontend/dist/
 backend/FrpcManager.Api/wwwroot/
 

@@ -23,6 +23,10 @@
           <el-icon><Connection /></el-icon>
           <template #title>通道管理</template>
         </el-menu-item>
+        <el-menu-item index="/wake">
+          <el-icon><Monitor /></el-icon>
+          <template #title>唤醒主机</template>
+        </el-menu-item>
         <el-menu-item index="/settings">
           <el-icon><Setting /></el-icon>
           <template #title>系统设置</template>
@@ -96,6 +100,7 @@ const activeMenu = computed(() => route.path)
 const pageTitles: Record<string, string> = {
   '/dashboard': '仪表板',
   '/proxies': '通道管理',
+  '/wake': '唤醒主机',
   '/settings': '系统设置'
 }
 

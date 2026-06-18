@@ -49,3 +49,6 @@ export const fetchConfig = () => api.get('/config')
 export const saveConfig = (data: object) => api.put('/config', data)
 export const fetchStatus = () => api.get('/config/status')
 export const reloadFrpc = () => api.post('/config/reload')
+
+// Wake-on-LAN
+export const wakeOnLan = (data: object) => api.post('/wake-on-lan', data)

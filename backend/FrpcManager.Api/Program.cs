@@ -52,6 +52,7 @@ builder.Services.AddHttpClient("FrpcApi", client =>
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ProxyService>();
 builder.Services.AddScoped<FrpcApiService>();
+builder.Services.AddScoped<WakeOnLanService>();
 builder.Services.AddSingleton<TomlService>();
 builder.Services.AddHostedService<ChannelExpiryService>();
 
