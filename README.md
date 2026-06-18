@@ -49,6 +49,8 @@ frpcManager/
 │       └── router/
 ├── install.bat                    # 一键安装前端依赖
 ├── start-dev.bat                  # 一键启动开发环境
+├── start-publish.bat              # Windows 一键拉取、构建、发布并启动
+├── start-publish-linux.bat        # Linux 一键拉取、构建、发布并启动
 └── 需求.md
 ```
 
@@ -140,6 +142,40 @@ start-dev.bat
 ---
 
 ## 生产部署
+
+推荐使用发布启动脚本自动完成拉取代码、前端构建、后端发布和启动。
+
+### Windows
+
+```powershell
+# 默认会先执行 git pull
+.\start-publish.bat
+
+# 网络不可用或不需要拉取代码时跳过 git pull
+.\start-publish.bat --no-pull
+```
+
+### Linux
+
+```bash
+chmod +x start-publish-linux.bat
+
+# 默认会先执行 git pull
+./start-publish-linux.bat
+
+# 网络不可用或不需要拉取代码时跳过 git pull
+./start-publish-linux.bat --no-pull
+```
+
+启动后访问：
+
+| 地址 | 说明 |
+|------|------|
+| http://localhost:6665 | 后端 API（HTTP） |
+| https://localhost:6666 | 后端 API（HTTPS，自签名证书） |
+| https://localhost:6666/swagger | Swagger 接口文档 |
+
+也可以手动执行发布流程：
 
 ```bash
 # 1. 构建前端（输出到后端 wwwroot）
