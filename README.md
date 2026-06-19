@@ -305,6 +305,23 @@ docker run -d \
 docker compose up -d --build
 ```
 
+如果需要构建镜像并推送到 Docker Hub，项目根目录提供交互式脚本。脚本会要求输入 Docker Hub 用户名、镜像仓库名、Tag，并询问是否使用 `--no-cache` 强制构建。
+
+Windows PowerShell / CMD：
+
+```powershell
+.\docker-build-push.bat
+```
+
+Linux：
+
+```bash
+chmod +x docker-build-push-linux.sh
+./docker-build-push-linux.sh
+```
+
+推送完成后，请在 Docker Hub 仓库页面确认仓库可见性为 Public。`docker push` 只负责上传镜像，不会自动修改 Docker Hub 仓库公开/私有状态。
+
 如果 frpc 运行在宿主机，容器内的 `127.0.0.1` 指向容器自身，需要按实际环境覆盖 frpc API 地址。例如 Docker Desktop：
 
 ```bash

@@ -20,5 +20,5 @@ echo   后端 HTTPS：https://localhost:6888
 echo   前端页面：http://localhost:5173
 echo   Swagger：https://localhost:6888/swagger
 echo.
-echo 默认账号：admin / admin123
+echo 首次启动请在页面初始化管理员账号。
 pause
