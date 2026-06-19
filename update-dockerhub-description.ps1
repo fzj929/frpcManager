@@ -63,12 +63,37 @@ try {
     } | ConvertTo-Json
 
     Write-Host "Updating Docker Hub repository: $Namespace/$Repository"
-    Invoke-RestMethod `
-        -Method Patch `
-        -Uri "https://hub.docker.com/v2/repositories/$Namespace/$Repository/" `
-        -ContentType "application/json" `
-        -Headers @{ Authorization = "JWT $jwt" } `
-        -Body $updateBody | Out-Null
+    $repositoryUri = "https://hub.docker.com/v2/repositories/$Namespace/$Repository/"
+    $authSchemes = @("JWT", "Bearer")
+    $lastError = $null
+
+    foreach ($scheme in $authSchemes) {
+        try {
+            Invoke-RestMethod `
+                -Method Patch `
+                -Uri $repositoryUri `
+                -ContentType "application/json" `
+                -Headers @{ Authorization = "$scheme $jwt" } `
+                -Body $updateBody | Out-Null
+
+            Write-Host "Updated with $scheme authorization."
+            $lastError = $null
+            break
+        }
+        catch {
+            $lastError = $_
+            $response = $_.Exception.Response
+            if (-not $response -or [int]$response.StatusCode -ne 403) {
+                throw
+            }
+
+            Write-Host "$scheme authorization was denied. Trying the next authorization scheme..."
+        }
+    }
+
+    if ($lastError) {
+        throw "Docker Hub denied the update. Confirm that '$Username' owns or can write to '$Namespace/$Repository'. If the token is already Read & Write, Docker Hub may not allow this metadata API with your access token; update the description in the web UI or try an account password only for this API call."
+    }
 
     Write-Host "Done. Docker Hub description updated: $Namespace/$Repository"
 }

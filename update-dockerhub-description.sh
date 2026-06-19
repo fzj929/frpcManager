@@ -64,15 +64,45 @@ if [[ -z "$JWT" || "$JWT" == "null" ]]; then
 fi
 
 echo "Updating Docker Hub repository: $NAMESPACE/$REPOSITORY"
-jq -n \
-  --arg description "$DESCRIPTION" \
-  --rawfile full_description "$README_PATH" \
-  '{description: $description, full_description: $full_description}' |
-curl -fsS \
-  -H "Content-Type: application/json" \
-  -H "Authorization: JWT $JWT" \
-  -X PATCH \
-  -d @- \
-  "https://hub.docker.com/v2/repositories/$NAMESPACE/$REPOSITORY/" >/dev/null
+UPDATE_OK=0
+for AUTH_SCHEME in JWT Bearer; do
+  UPDATE_STATUS="$(
+    jq -n \
+      --arg description "$DESCRIPTION" \
+      --rawfile full_description "$README_PATH" \
+      '{description: $description, full_description: $full_description}' |
+    curl -sS \
+      -o /tmp/frpc-manager-dockerhub-update-response.txt \
+      -w "%{http_code}" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: $AUTH_SCHEME $JWT" \
+      -X PATCH \
+      -d @- \
+      "https://hub.docker.com/v2/repositories/$NAMESPACE/$REPOSITORY/"
+  )"
+
+  if [[ "$UPDATE_STATUS" -ge 200 && "$UPDATE_STATUS" -lt 300 ]]; then
+    echo "Updated with $AUTH_SCHEME authorization."
+    UPDATE_OK=1
+    break
+  fi
+
+  if [[ "$UPDATE_STATUS" == "403" ]]; then
+    echo "$AUTH_SCHEME authorization was denied. Trying the next authorization scheme..."
+    continue
+  fi
+
+  echo "Docker Hub update failed with HTTP $UPDATE_STATUS."
+  cat /tmp/frpc-manager-dockerhub-update-response.txt
+  exit 1
+done
+
+if [[ "$UPDATE_OK" != "1" ]]; then
+  echo "Docker Hub denied the update."
+  echo "Confirm that '$USERNAME' owns or can write to '$NAMESPACE/$REPOSITORY'."
+  echo "If the token is already Read & Write, Docker Hub may not allow this metadata API with your access token; update the description in the web UI or try an account password only for this API call."
+  cat /tmp/frpc-manager-dockerhub-update-response.txt
+  exit 1
+fi
 
 echo "Done. Docker Hub description updated: $NAMESPACE/$REPOSITORY"
