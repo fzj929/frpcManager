@@ -1,5 +1,7 @@
 # FrpC 管理平台
 
+[中文](README.md) | [English](README.en.md)
+
 基于 **Vue 3 + ASP.NET Core 8 + SQLite** 的 frpc 内网穿透 Web 管理平台，与 frpc 运行在同一主机上，通过可视化界面管理所有穿透通道。
 
 ---
