@@ -45,7 +45,7 @@
       </el-form>
 
       <div class="login-hint">
-        首次启动会在服务日志中输出初始管理员密码
+        首次启动请先完成管理员初始化
       </div>
     </div>
   </div>

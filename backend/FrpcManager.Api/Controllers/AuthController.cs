@@ -17,12 +17,18 @@ public class AuthController : ControllerBase
     private readonly AuthService _authService;
     private readonly AppDbContext _db;
     private readonly AuditLogService _auditLogService;
+    private readonly LoginAttemptLimiter _loginAttemptLimiter;
 
-    public AuthController(AuthService authService, AppDbContext db, AuditLogService auditLogService)
+    public AuthController(
+        AuthService authService,
+        AppDbContext db,
+        AuditLogService auditLogService,
+        LoginAttemptLimiter loginAttemptLimiter)
     {
         _authService = authService;
         _db = db;
         _auditLogService = auditLogService;
+        _loginAttemptLimiter = loginAttemptLimiter;
     }
 
     [HttpGet("setup-status")]
@@ -65,15 +71,49 @@ public class AuthController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
             return BadRequest(new { message = "用户名和密码不能为空" });
 
-        var result = await _authService.LoginAsync(request);
-        if (result == null)
+        var username = request.Username.Trim();
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (_loginAttemptLimiter.IsLimited(ipAddress, username, DateTime.UtcNow))
         {
-            await _auditLogService.LogAsync(HttpContext, "auth.login", request.Username, "login failed", false);
+            await _auditLogService.LogAsync(
+                HttpContext,
+                "auth.login.rate-limited",
+                username,
+                $"too many login attempts; ip={ipAddress}",
+                false);
+            return StatusCode(StatusCodes.Status429TooManyRequests, new { message = "登录尝试过于频繁，请稍后再试" });
+        }
+
+        var result = await _authService.LoginAsync(request);
+        if (result.Status == LoginResultStatus.Locked)
+        {
+            await _auditLogService.LogAsync(
+                HttpContext,
+                "auth.login.locked",
+                username,
+                $"failedAttempts={result.FailedAttempts}; lockedUntil={result.LockedUntil:O}; ip={ipAddress}",
+                false);
+            return StatusCode(StatusCodes.Status423Locked, new
+            {
+                message = "账号已临时锁定，请稍后再试",
+                failedAttempts = result.FailedAttempts,
+                lockedUntil = result.LockedUntil
+            });
+        }
+
+        if (result.Status == LoginResultStatus.Failed)
+        {
+            await _auditLogService.LogAsync(
+                HttpContext,
+                "auth.login",
+                username,
+                $"login failed; failedAttempts={result.FailedAttempts}; ip={ipAddress}",
+                false);
             return Unauthorized(new { message = "用户名或密码错误" });
         }
 
-        await _auditLogService.LogAsync(HttpContext, "auth.login", request.Username, "login succeeded");
-        return Ok(result);
+        await _auditLogService.LogAsync(HttpContext, "auth.login", username, $"login succeeded; ip={ipAddress}");
+        return Ok(result.Response);
     }
 
     [Authorize]

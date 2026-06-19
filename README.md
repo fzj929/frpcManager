@@ -139,6 +139,39 @@ Admin__Password=请改成强密码
 - 配置备份导出、恢复
 - Wake-on-LAN 发送
 
+### 登录安全
+
+登录接口内置基础防暴力破解保护：
+
+- 按 `IP + 用户名` 进行窗口限流，默认同一组合每分钟最多 5 次尝试
+- 同一用户名连续失败 5 次后临时锁定 10 分钟
+- 登录失败、限流、账号锁定都会写入操作日志，并记录来源 IP
+- 默认不信任 `X-Forwarded-For` / `X-Forwarded-Proto`，避免客户端伪造 IP 绕过限流
+- Docker、Nginx、Caddy 等反向代理部署时，可显式开启并配置可信代理 IP 或网段
+
+可通过环境变量调整：
+
+```bash
+LoginSecurity__IpUsernamePermitLimit=5
+LoginSecurity__IpUsernameWindowMinutes=1
+LoginSecurity__MaxFailedAttempts=5
+LoginSecurity__LockoutMinutes=10
+```
+
+如需信任反向代理传入的真实客户端 IP，必须显式启用并限制可信代理来源：
+
+```bash
+ForwardedHeaders__Enabled=true
+ForwardedHeaders__KnownProxies__0=172.18.0.1
+```
+
+或配置可信网段：
+
+```bash
+ForwardedHeaders__Enabled=true
+ForwardedHeaders__KnownNetworks__0=172.18.0.0/16
+```
+
 ### 健康检查
 
 系统设置页面提供健康检查卡片，也可以直接访问接口：

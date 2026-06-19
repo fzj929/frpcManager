@@ -1,9 +1,11 @@
 using System.Text;
+using System.Net;
 using System.Threading.RateLimiting;
 using FrpcManager.Api.Data;
 using FrpcManager.Api.Models;
 using FrpcManager.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -92,12 +94,34 @@ builder.Services.AddScoped<FrpcApiService>();
 builder.Services.AddScoped<WakeOnLanService>();
 builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddScoped<BackupService>();
+builder.Services.AddSingleton<LoginAttemptLimiter>();
 builder.Services.AddSingleton<TomlService>();
 builder.Services.AddHostedService<ChannelExpiryService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+if (builder.Configuration.GetValue("ForwardedHeaders:Enabled", false))
+{
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+
+        foreach (var proxy in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [])
+        {
+            if (IPAddress.TryParse(proxy, out var ipAddress))
+                options.KnownProxies.Add(ipAddress);
+        }
+
+        foreach (var network in builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [])
+        {
+            if (TryParseCidr(network, out var prefix, out var prefixLength))
+                options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix, prefixLength));
+        }
+    });
+}
 
 
 var app = builder.Build();
@@ -155,6 +179,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+if (app.Configuration.GetValue("ForwardedHeaders:Enabled", false))
+{
+    app.UseForwardedHeaders();
+}
 app.UseRouting();
 app.UseCors();
 app.UseRateLimiter();
@@ -232,6 +260,10 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
         // Add ExpiresAt column for upgrades from older versions.
         try { db.Database.ExecuteSqlRaw("ALTER TABLE `Proxies` ADD COLUMN `ExpiresAt` datetime(6) NULL"); }
         catch { /* Column already exists */ }
+        try { db.Database.ExecuteSqlRaw("ALTER TABLE `Users` ADD COLUMN `FailedLoginCount` int NOT NULL DEFAULT 0"); }
+        catch { /* Column already exists */ }
+        try { db.Database.ExecuteSqlRaw("ALTER TABLE `Users` ADD COLUMN `LockedUntil` datetime(6) NULL"); }
+        catch { /* Column already exists */ }
 
         db.Database.ExecuteSqlRaw("""
             CREATE TABLE IF NOT EXISTS `AuditLogs` (
@@ -254,6 +286,10 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
     // Add ExpiresAt column for upgrades from older versions.
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Proxies ADD COLUMN ExpiresAt TEXT NULL"); }
     catch { /* Column already exists */ }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Users ADD COLUMN FailedLoginCount INTEGER NOT NULL DEFAULT 0"); }
+    catch { /* Column already exists */ }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Users ADD COLUMN LockedUntil TEXT NULL"); }
+    catch { /* Column already exists */ }
 
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS "AuditLogs" (
@@ -268,4 +304,25 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
         );
         """);
     db.Database.ExecuteSqlRaw("""CREATE INDEX IF NOT EXISTS "IX_AuditLogs_CreatedAt" ON "AuditLogs" ("CreatedAt");""");
+}
+
+static bool TryParseCidr(string value, out IPAddress prefix, out int prefixLength)
+{
+    prefix = IPAddress.None;
+    prefixLength = 0;
+
+    var parts = value.Split('/', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+    if (parts.Length != 2)
+        return false;
+
+    if (!IPAddress.TryParse(parts[0], out var parsedPrefix))
+        return false;
+
+    prefix = parsedPrefix;
+
+    if (!int.TryParse(parts[1], out prefixLength))
+        return false;
+
+    var maxPrefixLength = prefix.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork ? 32 : 128;
+    return prefixLength >= 0 && prefixLength <= maxPrefixLength;
 }

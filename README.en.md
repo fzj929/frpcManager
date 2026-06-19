@@ -133,6 +133,39 @@ The Audit Logs page records recent key actions:
 - Backup export and restore
 - Wake-on-LAN send
 
+### Login Security
+
+The login endpoint includes basic brute-force protection:
+
+- Window rate limiting by `IP + username`, default 5 attempts per minute for the same pair
+- Temporary account lockout for 10 minutes after 5 consecutive failures for the same username
+- Login failure, rate limit, and lockout events are written to audit logs with source IP
+- `X-Forwarded-For` and `X-Forwarded-Proto` are not trusted by default, which prevents clients from spoofing IP addresses to bypass rate limits
+- Docker, Nginx, Caddy, and other reverse proxy deployments can explicitly enable forwarded headers with trusted proxy IPs or networks
+
+Configuration can be overridden with environment variables:
+
+```bash
+LoginSecurity__IpUsernamePermitLimit=5
+LoginSecurity__IpUsernameWindowMinutes=1
+LoginSecurity__MaxFailedAttempts=5
+LoginSecurity__LockoutMinutes=10
+```
+
+To trust the real client IP from a reverse proxy, explicitly enable forwarded headers and restrict trusted proxy sources:
+
+```bash
+ForwardedHeaders__Enabled=true
+ForwardedHeaders__KnownProxies__0=172.18.0.1
+```
+
+Or configure a trusted network:
+
+```bash
+ForwardedHeaders__Enabled=true
+ForwardedHeaders__KnownNetworks__0=172.18.0.0/16
+```
+
 ### Health Check
 
 The Settings page includes a health check card. You can also call:
