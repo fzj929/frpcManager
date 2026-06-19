@@ -146,6 +146,48 @@ start-dev.bat
 
 推荐使用发布启动脚本自动完成拉取代码、前端构建、后端发布和启动。
 
+### Docker
+
+```bash
+# 构建镜像
+docker build -t frpc-manager .
+
+# 运行容器
+docker run -d \
+  --name frpc-manager \
+  -p 6887:6887 \
+  -p 6888:6888 \
+  -v frpc-manager-data:/app/data \
+  -e ConnectionStrings__DefaultConnection="Data Source=/app/data/frpcmanager.db" \
+  frpc-manager
+```
+
+如果 frpc 运行在宿主机，容器内的 `127.0.0.1` 指向容器自身，需要按实际环境覆盖 frpc API 地址。例如 Docker Desktop：
+
+```bash
+docker run -d \
+  --name frpc-manager \
+  -p 6887:6887 \
+  -p 6888:6888 \
+  -v frpc-manager-data:/app/data \
+  -e ConnectionStrings__DefaultConnection="Data Source=/app/data/frpcmanager.db" \
+  -e Frpc__ApiBaseUrl="http://host.docker.internal:7400" \
+  frpc-manager
+```
+
+Linux 环境如果需要容器发送 Wake-on-LAN 广播包到局域网，建议使用 host 网络模式：
+
+```bash
+docker run -d \
+  --name frpc-manager \
+  --network host \
+  -v frpc-manager-data:/app/data \
+  -e ConnectionStrings__DefaultConnection="Data Source=/app/data/frpcmanager.db" \
+  frpc-manager
+```
+
+使用 host 网络模式时不需要 `-p 6887:6887 -p 6888:6888`，服务会直接监听宿主机的 `6887` 和 `6888` 端口。
+
 ### Windows
 
 ```powershell
