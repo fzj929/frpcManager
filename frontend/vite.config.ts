@@ -19,6 +19,7 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: '../backend/FrpcManager.Api/wwwroot'
+    outDir: 'dist',
+    emptyOutDir: true
   }
 })

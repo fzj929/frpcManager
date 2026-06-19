@@ -45,7 +45,7 @@
       </el-form>
 
       <div class="login-hint">
-        默认账号：admin &nbsp;|&nbsp; 默认密码：admin123
+        首次启动会在服务日志中输出初始管理员密码
       </div>
     </div>
   </div>

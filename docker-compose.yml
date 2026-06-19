@@ -1,0 +1,23 @@
+services:
+  frpc-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: frpc-manager:latest
+    container_name: frpc-manager
+    restart: unless-stopped
+    ports:
+      - "6887:6887"
+      - "6888:6888"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: Data Source=/app/data/frpcmanager.db
+      Jwt__KeyFile: /app/data/jwt.key
+      Frpc__WebServerAddr: host.docker.internal
+      Frpc__WebServerPort: "7400"
+      # Admin__Password: "change-this-password"
+    volumes:
+      - frpc-manager-data:/app/data
+
+volumes:
+  frpc-manager-data:

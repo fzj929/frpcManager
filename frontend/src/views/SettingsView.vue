@@ -75,6 +75,52 @@
             </el-form-item>
           </el-form>
         </el-card>
+
+        <el-card class="settings-card">
+          <template #header>
+            <div class="card-header">
+              <el-icon><DataLine /></el-icon>
+              <span>健康检查</span>
+            </div>
+          </template>
+          <el-descriptions :column="1" v-loading="healthLoading">
+            <el-descriptions-item label="服务状态">
+              <el-tag :type="health?.status === 'healthy' ? 'success' : 'danger'">
+                {{ health?.status ?? 'unknown' }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="数据库">{{ health?.database ?? '-' }}</el-descriptions-item>
+            <el-descriptions-item label="frpc">{{ health?.frpc ?? '-' }}</el-descriptions-item>
+          </el-descriptions>
+          <el-button style="margin-top: 12px" :loading="healthLoading" @click="loadHealth">
+            刷新健康状态
+          </el-button>
+        </el-card>
+
+        <el-card class="settings-card">
+          <template #header>
+            <div class="card-header">
+              <el-icon><Files /></el-icon>
+              <span>配置备份与恢复</span>
+            </div>
+          </template>
+          <div class="backup-actions">
+            <el-button type="primary" :loading="backupLoading" @click="downloadBackup">
+              导出配置备份
+            </el-button>
+            <el-button :loading="restoreLoading" @click="backupInputRef?.click()">
+              导入并恢复
+            </el-button>
+            <input
+              ref="backupInputRef"
+              type="file"
+              accept="application/json,.json"
+              class="hidden-input"
+              @change="restoreFromFile"
+            />
+          </div>
+          <div class="form-hint">备份包含通道列表和 frpc 配置，不包含用户密码。</div>
+        </el-card>
       </el-col>
 
       <!-- Password & Info -->
@@ -140,16 +186,21 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Setting, Lock, InfoFilled, Check, Refresh } from '@element-plus/icons-vue'
-import { fetchConfig, saveConfig as apiSaveConfig, reloadFrpc as apiReload, authChangePassword } from '@/api'
-import type { FrpcConfig } from '@/types'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { Setting, Lock, InfoFilled, Check, Refresh, DataLine, Files } from '@element-plus/icons-vue'
+import { fetchConfig, saveConfig as apiSaveConfig, reloadFrpc as apiReload, authChangePassword, exportBackup, restoreBackup, fetchHealth } from '@/api'
+import type { FrpcConfig, HealthStatus } from '@/types'
 
 // Config form
 const configFormRef = ref<FormInstance>()
 const configLoading = ref(false)
 const configSaving = ref(false)
 const reloading = ref(false)
+const healthLoading = ref(false)
+const backupLoading = ref(false)
+const restoreLoading = ref(false)
+const health = ref<HealthStatus | null>(null)
+const backupInputRef = ref<HTMLInputElement>()
 
 const configForm = reactive<FrpcConfig>({
   serverAddr: '',
@@ -204,6 +255,68 @@ async function reloadFrpcNow() {
   }
 }
 
+async function loadHealth() {
+  healthLoading.value = true
+  try {
+    const res = await fetchHealth()
+    health.value = res.data
+  } catch (err: unknown) {
+    health.value = (err as { response?: { data?: HealthStatus } })?.response?.data ?? null
+    ElMessage.error('健康检查失败')
+  } finally {
+    healthLoading.value = false
+  }
+}
+
+async function downloadBackup() {
+  backupLoading.value = true
+  try {
+    const res = await exportBackup()
+    const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `frpcmanager-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success('配置备份已导出')
+  } catch {
+    ElMessage.error('导出配置备份失败')
+  } finally {
+    backupLoading.value = false
+  }
+}
+
+async function restoreFromFile(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  try {
+    await ElMessageBox.confirm('恢复配置会覆盖现有通道，并可能写入 frpc 配置。确定继续吗？', '恢复确认', {
+      type: 'warning',
+      confirmButtonText: '恢复',
+      cancelButtonText: '取消'
+    })
+
+    restoreLoading.value = true
+    const text = await file.text()
+    const backup = JSON.parse(text)
+    await restoreBackup({
+      proxies: backup.proxies ?? [],
+      frpcConfig: backup.frpcConfig ?? null,
+      replaceExisting: true,
+      applyFrpcConfig: true
+    })
+    ElMessage.success('配置已恢复')
+  } catch (err: unknown) {
+    if (err !== 'cancel') ElMessage.error('恢复配置失败')
+  } finally {
+    restoreLoading.value = false
+    input.value = ''
+  }
+}
+
 // Password form
 const pwdFormRef = ref<FormInstance>()
 const pwdSaving = ref(false)
@@ -249,7 +362,10 @@ async function changePassword() {
   }
 }
 
-onMounted(loadConfig)
+onMounted(() => {
+  loadConfig()
+  loadHealth()
+})
 </script>
 
 <style scoped>
@@ -276,6 +392,16 @@ onMounted(loadConfig)
   font-size: 12px;
   color: #aaa;
   margin-top: 4px;
+}
+
+.backup-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hidden-input {
+  display: none;
 }
 
 @media (max-width: 768px) {

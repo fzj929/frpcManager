@@ -13,11 +13,13 @@ public class AuthService
 {
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
+    private readonly JwtKeyProvider _jwtKeyProvider;
 
-    public AuthService(AppDbContext db, IConfiguration config)
+    public AuthService(AppDbContext db, IConfiguration config, JwtKeyProvider jwtKeyProvider)
     {
         _db = db;
         _config = config;
+        _jwtKeyProvider = jwtKeyProvider;
     }
 
     public async Task<LoginResponse?> LoginAsync(LoginRequest request)
@@ -34,6 +36,9 @@ public class AuthService
 
     public async Task<bool> ChangePasswordAsync(string username, ChangePasswordRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+            return false;
+
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
         if (user == null || !BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
             return false;
@@ -45,7 +50,7 @@ public class AuthService
 
     private string GenerateToken(User user)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtKeyProvider.Key));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var expiry = DateTime.UtcNow.AddHours(
             double.TryParse(_config["Jwt:ExpiryInHours"], out var h) ? h : 24);

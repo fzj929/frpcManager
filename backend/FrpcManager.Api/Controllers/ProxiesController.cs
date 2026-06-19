@@ -11,8 +11,13 @@ namespace FrpcManager.Api.Controllers;
 public class ProxiesController : ControllerBase
 {
     private readonly ProxyService _proxyService;
+    private readonly AuditLogService _auditLogService;
 
-    public ProxiesController(ProxyService proxyService) => _proxyService = proxyService;
+    public ProxiesController(ProxyService proxyService, AuditLogService auditLogService)
+    {
+        _proxyService = proxyService;
+        _auditLogService = auditLogService;
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetAll() =>
@@ -23,7 +28,9 @@ public class ProxiesController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(request.Name))
             return BadRequest(new { message = "通道名称不能为空" });
+
         var result = await _proxyService.CreateProxyAsync(request);
+        await _auditLogService.LogAsync(HttpContext, "proxy.create", request.Name, $"{request.Type}:{request.LocalIP}:{request.LocalPort}->{request.RemotePort}");
         return Ok(result);
     }
 
@@ -32,6 +39,8 @@ public class ProxiesController : ControllerBase
     {
         var result = await _proxyService.UpdateProxyAsync(id, request);
         if (result == null) return NotFound(new { message = "通道不存在" });
+
+        await _auditLogService.LogAsync(HttpContext, "proxy.update", request.Name, $"id={id}");
         return Ok(result);
     }
 
@@ -40,6 +49,8 @@ public class ProxiesController : ControllerBase
     {
         var success = await _proxyService.DeleteProxyAsync(id);
         if (!success) return NotFound(new { message = "通道不存在" });
+
+        await _auditLogService.LogAsync(HttpContext, "proxy.delete", id.ToString());
         return Ok(new { message = "删除成功" });
     }
 
@@ -49,6 +60,7 @@ public class ProxiesController : ControllerBase
         var (success, message) = await _proxyService.SetEnabledAsync(id, true, request.DurationMinutes);
         if (!success) return BadRequest(new { message });
 
+        await _auditLogService.LogAsync(HttpContext, "proxy.enable", id.ToString(), $"durationMinutes={request.DurationMinutes?.ToString() ?? "none"}");
         var tip = request.DurationMinutes.HasValue
             ? $"通道已启用，将在 {FormatDuration(request.DurationMinutes.Value)} 后自动关闭"
             : "通道已启用（无时间限制）";
@@ -60,7 +72,17 @@ public class ProxiesController : ControllerBase
     {
         var (success, message) = await _proxyService.SetEnabledAsync(id, false);
         if (!success) return BadRequest(new { message });
+
+        await _auditLogService.LogAsync(HttpContext, "proxy.disable", id.ToString());
         return Ok(new { message = "通道已停用" });
+    }
+
+    [HttpPost("sync")]
+    public async Task<IActionResult> SyncFromFrpc()
+    {
+        await _proxyService.SyncFromFrpcAsync();
+        await _auditLogService.LogAsync(HttpContext, "proxy.sync-from-frpc", "frpc");
+        return Ok(new { message = "已从 frpc 同步配置" });
     }
 
     private static string FormatDuration(int minutes) => minutes switch
@@ -72,11 +94,4 @@ public class ProxiesController : ControllerBase
         720 => "12 小时",
         _ => $"{minutes} 分钟"
     };
-
-    [HttpPost("sync")]
-    public async Task<IActionResult> SyncFromFrpc()
-    {
-        await _proxyService.SyncFromFrpcAsync();
-        return Ok(new { message = "已从 frpc 同步配置" });
-    }
 }

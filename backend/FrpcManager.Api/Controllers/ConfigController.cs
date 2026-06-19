@@ -11,8 +11,13 @@ namespace FrpcManager.Api.Controllers;
 public class ConfigController : ControllerBase
 {
     private readonly FrpcApiService _frpcApi;
+    private readonly AuditLogService _auditLogService;
 
-    public ConfigController(FrpcApiService frpcApi) => _frpcApi = frpcApi;
+    public ConfigController(FrpcApiService frpcApi, AuditLogService auditLogService)
+    {
+        _frpcApi = frpcApi;
+        _auditLogService = auditLogService;
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetConfig()
@@ -48,6 +53,7 @@ public class ConfigController : ControllerBase
         var reloadOk = await _frpcApi.ReloadAsync();
         if (!reloadOk) return StatusCode(500, new { message = "配置已更新，但重新加载失败" });
 
+        await _auditLogService.LogAsync(HttpContext, "config.update", "frpc", $"{request.ServerAddr}:{request.ServerPort}");
         return Ok(new { message = "配置更新并重新加载成功" });
     }
 
@@ -63,6 +69,8 @@ public class ConfigController : ControllerBase
     {
         var ok = await _frpcApi.ReloadAsync();
         if (!ok) return StatusCode(500, new { message = "重新加载失败" });
+
+        await _auditLogService.LogAsync(HttpContext, "config.reload", "frpc");
         return Ok(new { message = "重新加载成功" });
     }
 }

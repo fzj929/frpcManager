@@ -9,6 +9,7 @@ public class AppDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<Proxy> Proxies => Set<Proxy>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,6 +22,12 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Proxy>(e =>
         {
             e.HasKey(p => p.Id);
+        });
+
+        modelBuilder.Entity<AuditLog>(e =>
+        {
+            e.HasKey(l => l.Id);
+            e.HasIndex(l => l.CreatedAt);
         });
     }
 }

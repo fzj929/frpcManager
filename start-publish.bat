@@ -35,6 +35,9 @@ echo.
 echo [3/5] Build frontend...
 call npm run build
 if errorlevel 1 goto fail
+if exist "%BACKEND_DIR%\wwwroot" rmdir /s /q "%BACKEND_DIR%\wwwroot"
+xcopy "%FRONTEND_DIR%\dist" "%BACKEND_DIR%\wwwroot" /E /I /Y >nul
+if errorlevel 1 goto fail
 
 echo.
 echo [4/5] Publish backend...

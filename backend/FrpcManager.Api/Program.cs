@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using FrpcManager.Api.Data;
 using FrpcManager.Api.Models;
 using FrpcManager.Api.Services;
@@ -12,18 +13,27 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.SetIsOriginAllowed(_ => true)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+        if (origins.Length > 0)
+        {
+            policy.WithOrigins(origins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
+        else
+        {
+            policy.AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
     });
 });
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-var jwtKey = builder.Configuration["Jwt:Key"]
-    ?? throw new InvalidOperationException("JWT Key not configured");
+var jwtKeyProvider = new JwtKeyProvider(builder.Configuration);
+builder.Services.AddSingleton(jwtKeyProvider);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -36,11 +46,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKeyProvider.Key))
         };
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddPolicy("login", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+});
 
 builder.Services.AddHttpClient("FrpcApi", client =>
 {
@@ -52,6 +74,8 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ProxyService>();
 builder.Services.AddScoped<FrpcApiService>();
 builder.Services.AddScoped<WakeOnLanService>();
+builder.Services.AddScoped<AuditLogService>();
+builder.Services.AddScoped<BackupService>();
 builder.Services.AddSingleton<TomlService>();
 builder.Services.AddHostedService<ChannelExpiryService>();
 
@@ -62,7 +86,7 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Init DB and seed default admin
+// Init DB and first-run storage
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -71,16 +95,43 @@ using (var scope = app.Services.CreateScope())
     // Add ExpiresAt column for upgrades from older versions
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Proxies ADD COLUMN ExpiresAt TEXT NULL"); }
     catch { /* Column already exists */ }
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "AuditLogs" (
+            "Id" INTEGER NOT NULL CONSTRAINT "PK_AuditLogs" PRIMARY KEY AUTOINCREMENT,
+            "Username" TEXT NOT NULL,
+            "Action" TEXT NOT NULL,
+            "Target" TEXT NOT NULL,
+            "Details" TEXT NOT NULL,
+            "IpAddress" TEXT NOT NULL,
+            "Success" INTEGER NOT NULL,
+            "CreatedAt" TEXT NOT NULL
+        );
+        """);
+    db.Database.ExecuteSqlRaw("""CREATE INDEX IF NOT EXISTS "IX_AuditLogs_CreatedAt" ON "AuditLogs" ("CreatedAt");""");
 
     if (!db.Users.Any())
     {
-        db.Users.Add(new User
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        var username = app.Configuration["Admin:Username"];
+        if (string.IsNullOrWhiteSpace(username))
+            username = "admin";
+
+        var password = app.Configuration["Admin:Password"];
+        if (!string.IsNullOrWhiteSpace(password))
         {
-            Username = "admin",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
-            CreatedAt = DateTime.UtcNow
-        });
-        db.SaveChanges();
+            db.Users.Add(new User
+            {
+                Username = username,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                CreatedAt = DateTime.UtcNow
+            });
+            db.SaveChanges();
+            logger.LogInformation("Initial admin user '{Username}' created from environment configuration.", username);
+        }
+        else
+        {
+            logger.LogWarning("No admin user exists. Open the web UI to complete first-run setup, or set Admin__Password before startup.");
+        }
     }
 }
 
@@ -103,7 +154,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseRouting();
 app.UseCors();
+app.UseRateLimiter();
 
 if (!app.Environment.IsDevelopment())
 {

@@ -13,10 +13,12 @@ public class WakeOnLanController : ControllerBase
 {
     private const string DefaultBroadcastAddress = "255.255.255.255";
     private readonly WakeOnLanService _wakeOnLanService;
+    private readonly AuditLogService _auditLogService;
 
-    public WakeOnLanController(WakeOnLanService wakeOnLanService)
+    public WakeOnLanController(WakeOnLanService wakeOnLanService, AuditLogService auditLogService)
     {
         _wakeOnLanService = wakeOnLanService;
+        _auditLogService = auditLogService;
     }
 
     [HttpPost]
@@ -33,6 +35,7 @@ public class WakeOnLanController : ControllerBase
         try
         {
             await _wakeOnLanService.SendMagicPacketAsync(request.MacAddress, broadcastAddress, port);
+            await _auditLogService.LogAsync(HttpContext, "wake-on-lan.send", request.MacAddress, $"{broadcastAddress}:{port}");
             return Ok(new WakeOnLanResponse(
                 request.MacAddress,
                 broadcastAddress,

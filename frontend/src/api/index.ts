@@ -29,6 +29,11 @@ api.interceptors.response.use(
 export const authLogin = (username: string, password: string) =>
   api.post('/auth/login', { username, password })
 
+export const fetchSetupStatus = () => api.get('/auth/setup-status')
+
+export const setupAdmin = (username: string, password: string) =>
+  api.post('/auth/setup', { username, password })
+
 export const authChangePassword = (currentPassword: string, newPassword: string) =>
   api.post('/auth/change-password', { currentPassword, newPassword })
 
@@ -52,3 +57,11 @@ export const reloadFrpc = () => api.post('/config/reload')
 
 // Wake-on-LAN
 export const wakeOnLan = (data: object) => api.post('/wake-on-lan', data)
+
+// Audit logs
+export const fetchAuditLogs = (limit = 200) => api.get('/audit-logs', { params: { limit } })
+
+// Backup & health
+export const exportBackup = () => api.get('/backup')
+export const restoreBackup = (data: object) => api.post('/backup/restore', data)
+export const fetchHealth = () => api.get('/health')

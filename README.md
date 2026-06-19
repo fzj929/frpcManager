@@ -102,7 +102,7 @@ start-dev.bat
 | https://localhost:6888 | 后端 API（HTTPS） |
 | https://localhost:6888/swagger | Swagger 接口文档 |
 
-> **默认账号**：`admin` / `admin123`（首次登录后请及时修改密码）
+> **初始账号**：默认用户名为 `admin`。可通过 `Admin__Username` / `Admin__Password` 环境变量指定；未指定密码时，服务首次启动会在日志中输出随机初始密码。
 
 ---
 
@@ -126,6 +126,12 @@ start-dev.bat
 | `GET` | `/api/config/status` | 获取 frpc 实时通道状态 |
 | `POST` | `/api/config/reload` | 手动触发 frpc reload |
 | `POST` | `/api/wake-on-lan` | 根据 MAC 地址发送 Wake-on-LAN 魔术数据包 |
+| `GET` | `/api/auth/setup-status` | 获取是否需要首次初始化 |
+| `POST` | `/api/auth/setup` | 首次启动时创建管理员账号 |
+| `GET` | `/api/audit-logs` | 获取操作日志 |
+| `GET` | `/api/backup` | 导出通道和 frpc 配置备份 |
+| `POST` | `/api/backup/restore` | 恢复配置备份 |
+| `GET` | `/api/health` | 健康检查 |
 
 ---
 
@@ -159,7 +165,14 @@ docker run -d \
   -p 6888:6888 \
   -v frpc-manager-data:/app/data \
   -e ConnectionStrings__DefaultConnection="Data Source=/app/data/frpcmanager.db" \
+  -e Admin__Password="请改成强密码" \
   frpc-manager
+```
+
+也可以使用 Docker Compose：
+
+```bash
+docker compose up -d --build
 ```
 
 如果 frpc 运行在宿主机，容器内的 `127.0.0.1` 指向容器自身，需要按实际环境覆盖 frpc API 地址。例如 Docker Desktop：
@@ -171,6 +184,7 @@ docker run -d \
   -p 6888:6888 \
   -v frpc-manager-data:/app/data \
   -e ConnectionStrings__DefaultConnection="Data Source=/app/data/frpcmanager.db" \
+  -e Admin__Password="请改成强密码" \
   -e Frpc__WebServerAddr="host.docker.internal" \
   -e Frpc__WebServerPort="7400" \
   frpc-manager
@@ -192,6 +206,7 @@ docker run -d \
   --network host \
   -v frpc-manager-data:/app/data \
   -e ConnectionStrings__DefaultConnection="Data Source=/app/data/frpcmanager.db" \
+  -e Admin__Password="请改成强密码" \
   frpc-manager
 ```
 
@@ -230,15 +245,20 @@ chmod +x start-publish-linux.bat
 也可以手动执行发布流程：
 
 ```bash
-# 1. 构建前端（输出到后端 wwwroot）
+# 1. 构建前端
 cd frontend
 npm run build
 
-# 2. 发布后端
+# 2. 复制前端产物到后端 wwwroot
+rm -rf ../backend/FrpcManager.Api/wwwroot
+mkdir -p ../backend/FrpcManager.Api/wwwroot
+cp -R dist/. ../backend/FrpcManager.Api/wwwroot/
+
+# 3. 发布后端
 cd ../backend/FrpcManager.Api
 dotnet publish -c Release -o ./publish
 
-# 3. 运行（前后端一体）
+# 4. 运行（前后端一体）
 cd publish
 dotnet FrpcManager.Api.dll
 # 访问 http://0.0.0.0:6887 或 https://0.0.0.0:6888

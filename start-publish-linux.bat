@@ -34,6 +34,9 @@ npm install
 echo
 echo "[3/5] Build frontend..."
 npm run build
+rm -rf "$BACKEND_DIR/wwwroot"
+mkdir -p "$BACKEND_DIR/wwwroot"
+cp -R "$FRONTEND_DIR/dist/." "$BACKEND_DIR/wwwroot/"
 
 echo
 echo "[4/5] Publish backend..."

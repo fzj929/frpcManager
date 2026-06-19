@@ -51,3 +51,21 @@ export interface WakeOnLanResponse {
   port: number
   message: string
 }
+
+export interface AuditLog {
+  id: number
+  username: string
+  action: string
+  target: string
+  details: string
+  ipAddress: string
+  success: boolean
+  createdAt: string
+}
+
+export interface HealthStatus {
+  status: string
+  database: string
+  frpc: string
+  checkedAt: string
+}
