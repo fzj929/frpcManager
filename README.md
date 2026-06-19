@@ -446,6 +446,15 @@ dotnet FrpcManager.Api.dll
 
 ---
 
+## 开源协作与安全
+
+- 许可证：本项目使用 [MIT License](LICENSE)。
+- 安全问题：请不要在公开 Issue 中提交漏洞细节，报告方式见 [SECURITY.md](SECURITY.md)。
+- 贡献说明：提交 PR 前请参考 [CONTRIBUTING.md](CONTRIBUTING.md)。
+- 变更记录：版本和重要变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+
+---
+
 ## License
 
-MIT
+[MIT](LICENSE)

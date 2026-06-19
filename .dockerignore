@@ -22,3 +22,11 @@ frpcmanager.db-wal
 .env
 .env.local
 appsettings.Production.json
+
+*.key
+*.pem
+*.crt
+*.cer
+*.p12
+*.pfx
+!backend/FrpcManager.Api/frpcmanager.pfx

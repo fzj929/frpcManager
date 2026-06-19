@@ -363,6 +363,15 @@ The script asks for Docker Hub username, namespace, repository name, and access 
 
 ---
 
+## Open Source and Security
+
+- License: this project is licensed under the [MIT License](LICENSE).
+- Security issues: do not report vulnerability details in public issues. See [SECURITY.md](SECURITY.md).
+- Contributing: read [CONTRIBUTING.md](CONTRIBUTING.md) before opening pull requests.
+- Changelog: notable changes are tracked in [CHANGELOG.md](CHANGELOG.md).
+
+---
+
 ## License
 
-MIT
+[MIT](LICENSE)
