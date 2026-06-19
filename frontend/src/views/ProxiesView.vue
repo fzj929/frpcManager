@@ -402,4 +402,44 @@ onUnmounted(() => {
   color: #888;
   text-align: right;
 }
+
+@media (max-width: 768px) {
+  .page-header {
+    align-items: stretch;
+  }
+
+  .page-header h2 {
+    font-size: 20px;
+  }
+
+  .header-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .header-actions :deep(.el-input),
+  .header-actions :deep(.el-select),
+  .header-actions :deep(.el-button) {
+    width: 100% !important;
+  }
+
+  .header-actions :deep(.el-input) {
+    grid-column: 1 / -1;
+  }
+
+  .table-card :deep(.el-card__body) {
+    overflow-x: auto;
+  }
+
+  .table-card :deep(.el-table) {
+    min-width: 760px;
+  }
+
+  .table-footer {
+    text-align: left;
+    white-space: normal;
+  }
+}
 </style>

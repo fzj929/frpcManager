@@ -209,6 +209,92 @@ async function handleCommand(cmd: string) {
   padding: 24px;
 }
 
+@media (max-width: 768px) {
+  .layout-wrapper {
+    display: block;
+    height: 100dvh;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100% !important;
+    height: 64px;
+    z-index: 1000;
+    border-top: 1px solid #2a2a3e;
+  }
+
+  .sidebar-logo,
+  .sidebar-footer {
+    display: none;
+  }
+
+  .sidebar-menu {
+    display: flex;
+    width: 100%;
+    height: 64px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .sidebar-menu :deep(.el-menu-item) {
+    flex: 1 0 76px;
+    min-width: 76px;
+    height: 64px;
+    line-height: 1.2;
+    padding: 8px 6px !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .sidebar-menu :deep(.el-menu-item .el-icon) {
+    margin-right: 0;
+    font-size: 18px;
+  }
+
+  .sidebar-menu :deep(.el-menu-item .el-menu-tooltip__trigger) {
+    position: static;
+  }
+
+  .sidebar-menu :deep(.el-menu-item .el-tooltip__trigger),
+  .sidebar-menu :deep(.el-menu-item span) {
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .header {
+    height: 48px;
+    padding: 0 12px;
+  }
+
+  .header-left {
+    min-width: 0;
+  }
+
+  .header :deep(.el-breadcrumb) {
+    font-size: 12px;
+  }
+
+  .username {
+    display: none;
+  }
+
+  .user-info {
+    padding: 2px 0;
+  }
+
+  .main-content {
+    height: calc(100dvh - 48px);
+    padding: 12px;
+    padding-bottom: 82px;
+  }
+}
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s;
@@ -230,5 +316,32 @@ html, body, #app {
 
 :root {
   --el-menu-bg-color: #1e1e2e !important;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .el-card__body {
+    padding: 14px !important;
+  }
+
+  .el-dialog {
+    --el-dialog-width: calc(100vw - 24px) !important;
+    margin-top: 5vh !important;
+  }
+
+  .el-form-item {
+    margin-bottom: 18px;
+  }
+
+  .el-form-item__label {
+    line-height: 1.3;
+  }
+
+  .el-message-box {
+    width: calc(100vw - 24px) !important;
+  }
 }
 </style>

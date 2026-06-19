@@ -263,4 +263,49 @@ onMounted(loadData)
   color: #aaa;
   padding-top: 8px;
 }
+
+@media (max-width: 768px) {
+  .page-title {
+    margin-bottom: 14px;
+  }
+
+  .page-title h2 {
+    font-size: 20px;
+  }
+
+  .stats-row {
+    margin-left: -6px !important;
+    margin-right: -6px !important;
+  }
+
+  .stats-row .el-col {
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+    margin-bottom: 12px;
+  }
+
+  .stat-card {
+    min-height: 92px;
+    padding: 14px 12px;
+    gap: 10px;
+  }
+
+  .stat-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+  }
+
+  .stat-value {
+    font-size: 24px;
+  }
+
+  .stat-label {
+    font-size: 12px;
+  }
+
+  .proxy-addr {
+    word-break: break-all;
+  }
+}
 </style>

@@ -277,4 +277,35 @@ onMounted(loadConfig)
   color: #aaa;
   margin-top: 4px;
 }
+
+@media (max-width: 768px) {
+  .settings-page h2 {
+    font-size: 20px;
+    margin-bottom: 14px;
+  }
+
+  .settings-card {
+    margin-bottom: 14px;
+  }
+
+  .settings-card :deep(.el-form-item__label) {
+    width: 100% !important;
+    justify-content: flex-start;
+    margin-bottom: 6px;
+  }
+
+  .settings-card :deep(.el-form-item) {
+    display: block;
+  }
+
+  .settings-card :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+  }
+
+  .settings-card :deep(.el-button) {
+    width: 100%;
+    margin-left: 0;
+    margin-bottom: 8px;
+  }
+}
 </style>

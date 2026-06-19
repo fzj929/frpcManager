@@ -171,4 +171,42 @@ function resetForm() {
 .tips {
   margin-top: 18px;
 }
+
+@media (max-width: 768px) {
+  .wake-page {
+    max-width: none;
+  }
+
+  .page-header {
+    margin-bottom: 14px;
+  }
+
+  .page-header h2 {
+    font-size: 20px;
+  }
+
+  .wake-card {
+    margin-bottom: 14px;
+  }
+
+  .wake-card :deep(.el-form-item) {
+    display: block;
+  }
+
+  .wake-card :deep(.el-form-item__label) {
+    width: 100% !important;
+    justify-content: flex-start;
+    margin-bottom: 6px;
+  }
+
+  .wake-card :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+  }
+
+  .wake-card :deep(.el-button) {
+    width: 100%;
+    margin-left: 0;
+    margin-bottom: 8px;
+  }
+}
 </style>

@@ -192,4 +192,25 @@ async function handleSave() {
   margin-top: 4px;
   line-height: 1.4;
 }
+
+@media (max-width: 768px) {
+  :deep(.el-form-item) {
+    display: block;
+  }
+
+  :deep(.el-form-item__label) {
+    width: 100% !important;
+    justify-content: flex-start;
+    margin-bottom: 6px;
+  }
+
+  :deep(.el-form-item__content) {
+    margin-left: 0 !important;
+  }
+
+  :deep(.el-input-number),
+  :deep(.el-select) {
+    width: 100% !important;
+  }
+}
 </style>

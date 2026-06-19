@@ -191,4 +191,15 @@ function confirm() {
   color: #909399;
   background: #f5f5f5;
 }
+
+@media (max-width: 768px) {
+  .duration-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .duration-item {
+    min-height: 82px;
+    padding: 12px 8px 8px;
+  }
+}
 </style>
