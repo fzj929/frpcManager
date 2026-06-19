@@ -8,14 +8,24 @@ echo "  FrpcManager Docker build and push"
 echo "==================================="
 echo
 
-read -r -p "Enter Docker Hub username: " DOCKER_USER
+read -r -p "Enter Docker Hub username/namespace, not email: " DOCKER_USER
 if [ -z "$DOCKER_USER" ]; then
   echo "Docker Hub username is required."
+  exit 1
+fi
+if [[ "$DOCKER_USER" == *"@"* || "$DOCKER_USER" == *"/"* || "$DOCKER_USER" == *"\\"* || "$DOCKER_USER" == *":"* ]]; then
+  echo "Invalid Docker Hub username/namespace: $DOCKER_USER"
+  echo "Use your Docker ID, not your email address. Example: fengzhengjin929"
   exit 1
 fi
 
 read -r -p "Enter image repository name [frpc-manager]: " IMAGE_REPO
 IMAGE_REPO="${IMAGE_REPO:-frpc-manager}"
+if [[ "$IMAGE_REPO" == *"@"* || "$IMAGE_REPO" == *"/"* || "$IMAGE_REPO" == *"\\"* || "$IMAGE_REPO" == *":"* ]]; then
+  echo "Invalid image repository name: $IMAGE_REPO"
+  echo "Use a plain repository name. Example: frpc-manager"
+  exit 1
+fi
 
 read -r -p "Enter image tag [latest]: " IMAGE_TAG
 IMAGE_TAG="${IMAGE_TAG:-latest}"

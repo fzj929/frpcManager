@@ -307,6 +307,8 @@ docker compose up -d --build
 
 如果需要构建镜像并推送到 Docker Hub，项目根目录提供交互式脚本。脚本会要求输入 Docker Hub 用户名、镜像仓库名、Tag，并询问是否使用 `--no-cache` 强制构建。
 
+Docker Hub 用户名必须填写 Docker ID / namespace，不是邮箱地址。例如镜像名应为 `fengzhengjin929/frpc-manager:latest`，不能写成 `fengzhengjin929@163.com/frpc-manager:latest`。
+
 Windows PowerShell / CMD：
 
 ```powershell
