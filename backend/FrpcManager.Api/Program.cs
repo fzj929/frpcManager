@@ -44,8 +44,7 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddHttpClient("FrpcApi", client =>
 {
-    var baseUrl = builder.Configuration["Frpc:ApiBaseUrl"] ?? "http://127.0.0.1:7400";
-    client.BaseAddress = new Uri(baseUrl);
+    client.BaseAddress = new Uri(GetFrpcApiBaseUrl(builder.Configuration));
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 
@@ -122,3 +121,24 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.Run();
+
+static string GetFrpcApiBaseUrl(IConfiguration configuration)
+{
+    var configuredBaseUrl = configuration["Frpc:ApiBaseUrl"];
+    if (!string.IsNullOrWhiteSpace(configuredBaseUrl))
+        return configuredBaseUrl;
+
+    var webServerAddr = configuration["Frpc:WebServerAddr"];
+    if (string.IsNullOrWhiteSpace(webServerAddr))
+    {
+        webServerAddr = string.Equals(
+            Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"),
+            "true",
+            StringComparison.OrdinalIgnoreCase)
+                ? "host.docker.internal"
+                : "127.0.0.1";
+    }
+
+    var webServerPort = configuration.GetValue("Frpc:WebServerPort", 7400);
+    return $"http://{webServerAddr}:{webServerPort}";
+}

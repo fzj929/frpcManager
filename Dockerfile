@@ -25,6 +25,8 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
 ENV ASPNETCORE_ENVIRONMENT=Production
+ENV Frpc__WebServerAddr=host.docker.internal
+ENV Frpc__WebServerPort=7400
 
 COPY --from=backend-build /app/publish ./
 

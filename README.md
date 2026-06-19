@@ -171,9 +171,18 @@ docker run -d \
   -p 6888:6888 \
   -v frpc-manager-data:/app/data \
   -e ConnectionStrings__DefaultConnection="Data Source=/app/data/frpcmanager.db" \
-  -e Frpc__ApiBaseUrl="http://host.docker.internal:7400" \
+  -e Frpc__WebServerAddr="host.docker.internal" \
+  -e Frpc__WebServerPort="7400" \
   frpc-manager
 ```
+
+frpc Web 管理地址也可以直接用完整地址覆盖：
+
+```bash
+-e Frpc__ApiBaseUrl="http://host.docker.internal:7400"
+```
+
+配置优先级为：`Frpc__ApiBaseUrl` 优先；未设置时使用 `Frpc__WebServerAddr` 和 `Frpc__WebServerPort` 拼接。普通服务器默认 `127.0.0.1:7400`，Docker 镜像内默认 `host.docker.internal:7400`。
 
 Linux 环境如果需要容器发送 Wake-on-LAN 广播包到局域网，建议使用 host 网络模式：
 
