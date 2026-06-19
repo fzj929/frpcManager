@@ -29,8 +29,24 @@ builder.Services.AddCors(options =>
     });
 });
 
+var databaseProvider = GetDatabaseProvider(builder.Configuration);
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    if (databaseProvider == "mysql")
+    {
+        var connectionString = GetMySqlConnectionString(builder.Configuration);
+        var versionText = builder.Configuration["Database:MySqlServerVersion"];
+        var serverVersion = string.IsNullOrWhiteSpace(versionText)
+            ? new MySqlServerVersion(new Version(8, 0, 0))
+            : new MySqlServerVersion(Version.Parse(versionText));
+
+        options.UseMySql(connectionString, serverVersion);
+    }
+    else
+    {
+        options.UseSqlite(GetRequiredConnectionString(builder.Configuration, "DefaultConnection"));
+    }
+});
 
 var jwtKeyProvider = new JwtKeyProvider(builder.Configuration);
 builder.Services.AddSingleton(jwtKeyProvider);
@@ -92,22 +108,7 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
 
-    // Add ExpiresAt column for upgrades from older versions
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Proxies ADD COLUMN ExpiresAt TEXT NULL"); }
-    catch { /* Column already exists */ }
-    db.Database.ExecuteSqlRaw("""
-        CREATE TABLE IF NOT EXISTS "AuditLogs" (
-            "Id" INTEGER NOT NULL CONSTRAINT "PK_AuditLogs" PRIMARY KEY AUTOINCREMENT,
-            "Username" TEXT NOT NULL,
-            "Action" TEXT NOT NULL,
-            "Target" TEXT NOT NULL,
-            "Details" TEXT NOT NULL,
-            "IpAddress" TEXT NOT NULL,
-            "Success" INTEGER NOT NULL,
-            "CreatedAt" TEXT NOT NULL
-        );
-        """);
-    db.Database.ExecuteSqlRaw("""CREATE INDEX IF NOT EXISTS "IX_AuditLogs_CreatedAt" ON "AuditLogs" ("CreatedAt");""");
+    InitializeDatabaseCompatibility(db, databaseProvider);
 
     if (!db.Users.Any())
     {
@@ -194,4 +195,77 @@ static string GetFrpcApiBaseUrl(IConfiguration configuration)
 
     var webServerPort = configuration.GetValue("Frpc:WebServerPort", 7400);
     return $"http://{webServerAddr}:{webServerPort}";
+}
+
+static string GetDatabaseProvider(IConfiguration configuration)
+{
+    var provider = configuration["Database:Provider"];
+    provider = string.IsNullOrWhiteSpace(provider) ? "sqlite" : provider.Trim().ToLowerInvariant();
+    if (provider is not ("sqlite" or "mysql"))
+        throw new InvalidOperationException("Database:Provider must be 'sqlite' or 'mysql'.");
+
+    return provider;
+}
+
+static string GetRequiredConnectionString(IConfiguration configuration, string name)
+{
+    var connectionString = configuration.GetConnectionString(name);
+    if (string.IsNullOrWhiteSpace(connectionString))
+        throw new InvalidOperationException($"Connection string '{name}' is required.");
+
+    return connectionString;
+}
+
+static string GetMySqlConnectionString(IConfiguration configuration)
+{
+    var connectionString = configuration.GetConnectionString("MySql");
+    if (!string.IsNullOrWhiteSpace(connectionString))
+        return connectionString;
+
+    return GetRequiredConnectionString(configuration, "DefaultConnection");
+}
+
+static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProvider)
+{
+    if (databaseProvider == "mysql")
+    {
+        // Add ExpiresAt column for upgrades from older versions.
+        try { db.Database.ExecuteSqlRaw("ALTER TABLE `Proxies` ADD COLUMN `ExpiresAt` datetime(6) NULL"); }
+        catch { /* Column already exists */ }
+
+        db.Database.ExecuteSqlRaw("""
+            CREATE TABLE IF NOT EXISTS `AuditLogs` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `Username` longtext NOT NULL,
+                `Action` longtext NOT NULL,
+                `Target` longtext NOT NULL,
+                `Details` longtext NOT NULL,
+                `IpAddress` longtext NOT NULL,
+                `Success` tinyint(1) NOT NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                CONSTRAINT `PK_AuditLogs` PRIMARY KEY (`Id`)
+            );
+            """);
+        try { db.Database.ExecuteSqlRaw("""CREATE INDEX `IX_AuditLogs_CreatedAt` ON `AuditLogs` (`CreatedAt`);"""); }
+        catch { /* Index already exists */ }
+        return;
+    }
+
+    // Add ExpiresAt column for upgrades from older versions.
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Proxies ADD COLUMN ExpiresAt TEXT NULL"); }
+    catch { /* Column already exists */ }
+
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "AuditLogs" (
+            "Id" INTEGER NOT NULL CONSTRAINT "PK_AuditLogs" PRIMARY KEY AUTOINCREMENT,
+            "Username" TEXT NOT NULL,
+            "Action" TEXT NOT NULL,
+            "Target" TEXT NOT NULL,
+            "Details" TEXT NOT NULL,
+            "IpAddress" TEXT NOT NULL,
+            "Success" INTEGER NOT NULL,
+            "CreatedAt" TEXT NOT NULL
+        );
+        """);
+    db.Database.ExecuteSqlRaw("""CREATE INDEX IF NOT EXISTS "IX_AuditLogs_CreatedAt" ON "AuditLogs" ("CreatedAt");""");
 }

@@ -11,13 +11,33 @@ services:
       - "6888:6888"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      Database__Provider: sqlite
       ConnectionStrings__DefaultConnection: Data Source=/app/data/frpcmanager.db
       Jwt__KeyFile: /app/data/jwt.key
       Frpc__WebServerAddr: host.docker.internal
       Frpc__WebServerPort: "7400"
       # Admin__Password: "change-this-password"
+      # MySQL example:
+      # Database__Provider: mysql
+      # ConnectionStrings__MySql: Server=mysql;Port=3306;Database=frpcmanager;User=frpcmanager;Password=change-this-password;CharSet=utf8mb4;
     volumes:
       - frpc-manager-data:/app/data
 
+  # Optional MySQL service. Uncomment Database__Provider and ConnectionStrings__MySql above before using it.
+  mysql:
+    image: mysql:8.0
+    container_name: frpc-manager-mysql
+    profiles:
+      - mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: frpcmanager
+      MYSQL_USER: frpcmanager
+      MYSQL_PASSWORD: change-this-password
+      MYSQL_ROOT_PASSWORD: change-root-password
+    volumes:
+      - frpc-manager-mysql:/var/lib/mysql
+
 volumes:
   frpc-manager-data:
+  frpc-manager-mysql:

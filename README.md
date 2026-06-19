@@ -14,6 +14,11 @@
 - **从 frpc 同步**：一键导入 frpc 当前配置文件中的已有通道
 - **服务器配置**：可视化修改 frpc 服务端地址、端口、认证 Token 等
 - **用户认证**：JWT 登录鉴权，支持修改密码
+- **首次启动初始化向导**：首次部署时通过页面创建管理员账号，不再内置默认密码
+- **操作日志**：记录登录、通道、配置、备份恢复、Wake-on-LAN 等关键操作
+- **健康检查**：检查数据库和 frpc Web 管理接口状态，便于部署后排障
+- **配置备份 / 恢复**：支持导出通道与 frpc 配置，并从备份文件恢复
+- **Docker Compose**：提供 `docker-compose.yml`，可一条命令构建并启动容器
 - **仪表板**：统计卡片 + 活动通道列表 + 服务器信息一览
 
 ---
@@ -24,7 +29,7 @@
 |------|------|
 | 前端 | Vue 3 · Vite · TypeScript · Element Plus · Pinia · Vue Router |
 | 后端 | ASP.NET Core 8 · EF Core · JWT Bearer |
-| 数据库 | SQLite（自动创建，无需手动初始化） |
+| 数据库 | SQLite（默认）· MySQL（可选，通过环境变量切换） |
 | 通信 | frpc 内置 Web API（默认 `http://127.0.0.1:7400`） |
 
 ---
@@ -35,14 +40,14 @@
 frpcManager/
 ├── backend/
 │   └── FrpcManager.Api/          # ASP.NET Core 8 Web API
-│       ├── Controllers/           # Auth · Proxies · Config
+│       ├── Controllers/           # Auth · Proxies · Config · AuditLogs · Backup · Health
 │       ├── Services/              # 业务逻辑 + frpc API 集成 + TOML 解析
 │       ├── Models/ & DTOs/        # 数据模型与传输对象
 │       ├── Data/                  # EF Core SQLite 上下文
 │       └── Program.cs
 ├── frontend/
 │   └── src/
-│       ├── views/                 # Login · Dashboard · Proxies · Settings
+│       ├── views/                 # Login · Setup · Dashboard · Proxies · Settings · AuditLogs
 │       ├── components/            # AppLayout · ProxyFormDialog
 │       ├── stores/                # Pinia 状态管理
 │       ├── api/                   # Axios 请求封装
@@ -102,13 +107,138 @@ start-dev.bat
 | https://localhost:6888 | 后端 API（HTTPS） |
 | https://localhost:6888/swagger | Swagger 接口文档 |
 
-> **初始账号**：默认用户名为 `admin`。可通过 `Admin__Username` / `Admin__Password` 环境变量指定；未指定密码时，服务首次启动会在日志中输出随机初始密码。
+> **首次初始化**：系统不再内置默认密码。首次打开页面时会自动进入初始化向导，创建第一个管理员账号。也可以通过 `Admin__Username` / `Admin__Password` 环境变量预置初始管理员，建议使用强密码。
+
+---
+
+## 运维功能说明
+
+### 首次启动初始化向导
+
+服务启动后会检查用户表是否为空。如果没有任何用户，前端会自动跳转到 `/setup`，要求创建第一个管理员账号；初始化完成后再进入登录页。
+
+如需在无人值守部署中预置管理员，可以设置环境变量：
+
+```bash
+Admin__Username=admin
+Admin__Password=请改成强密码
+```
+
+未设置 `Admin__Password` 时，系统不会自动创建默认管理员，避免暴露默认密码。
+
+### 操作日志
+
+左侧菜单提供“操作日志”页面，用于查看最近的关键操作记录，包括：
+
+- 登录成功 / 失败
+- 首次创建管理员
+- 通道新增、修改、删除、启用、停用、同步
+- frpc 配置更新、reload
+- 配置备份导出、恢复
+- Wake-on-LAN 发送
+
+### 健康检查
+
+系统设置页面提供健康检查卡片，也可以直接访问接口：
+
+```bash
+GET /api/health
+```
+
+返回内容包含数据库状态、frpc Web 管理接口状态和检查时间，适合用于部署后验证或外部监控探活。
+
+### 配置备份 / 恢复
+
+系统设置页面提供配置备份和恢复入口：
+
+- 导出：下载包含通道列表和当前 frpc 配置的 JSON 备份文件
+- 恢复：上传备份 JSON，可恢复通道配置，并可同步写回 frpc 配置
+
+恢复操作会记录操作日志。生产环境建议在大批量修改通道前先导出备份。
+
+### Docker Compose
+
+项目根目录提供 `docker-compose.yml`，可以直接构建并启动：
+
+```bash
+docker compose up -d --build
+```
+
+默认映射端口：
+
+| 宿主机端口 | 容器服务 |
+|------|------|
+| `6887` | HTTP |
+| `6888` | HTTPS |
+
+Compose 默认将数据持久化到 `frpc-manager-data` 卷，并将容器内 frpc Web 管理地址设为 `host.docker.internal:7400`。如果你的 frpc 不在宿主机或端口不同，请覆盖 `Frpc__WebServerAddr` / `Frpc__WebServerPort` 或 `Frpc__ApiBaseUrl`。
+
+---
+
+## 数据库配置
+
+系统支持 SQLite 和 MySQL 双数据库：
+
+- 默认使用 SQLite，适合单机部署和轻量使用
+- 设置 `Database__Provider=mysql` 后切换到 MySQL，适合多人使用、容器化或需要集中备份的生产环境
+
+### SQLite（默认）
+
+不需要额外配置。默认连接字符串：
+
+```bash
+Database__Provider=sqlite
+ConnectionStrings__DefaultConnection="Data Source=frpcmanager.db"
+```
+
+Docker 部署建议持久化数据库文件：
+
+```bash
+ConnectionStrings__DefaultConnection="Data Source=/app/data/frpcmanager.db"
+```
+
+### MySQL
+
+切换到 MySQL 时至少需要设置：
+
+```bash
+Database__Provider=mysql
+ConnectionStrings__MySql="Server=127.0.0.1;Port=3306;Database=frpcmanager;User=frpcmanager;Password=请改成强密码;CharSet=utf8mb4;"
+```
+
+也可以把 MySQL 连接串写到 `ConnectionStrings__DefaultConnection`，系统会在未设置 `ConnectionStrings__MySql` 时回退使用它：
+
+```bash
+Database__Provider=mysql
+ConnectionStrings__DefaultConnection="Server=127.0.0.1;Port=3306;Database=frpcmanager;User=frpcmanager;Password=请改成强密码;CharSet=utf8mb4;"
+```
+
+默认按 MySQL 8.0 生成 EF Core 语句。如果使用其他兼容版本，可以覆盖：
+
+```bash
+Database__MySqlServerVersion=8.0.36
+```
+
+使用 Docker Compose 中的 MySQL 服务时，需要把 `frpc-manager` 服务的数据库环境变量改为：
+
+```yaml
+Database__Provider: mysql
+ConnectionStrings__MySql: Server=mysql;Port=3306;Database=frpcmanager;User=frpcmanager;Password=change-this-password;CharSet=utf8mb4;
+```
+
+然后启动：
+
+```bash
+docker compose --profile mysql up -d --build
+```
+
+首次连接 MySQL 前请确认数据库用户、密码和库名已经创建，并且应用所在主机可以访问 MySQL 端口。
 
 ---
 
 ## API 说明
 
-后端代理了以下 frpc 原生 API，所有请求需携带 JWT Token：
+后端提供以下 API。除首次初始化状态、初始化创建管理员、健康检查等公开接口外，其余请求需携带 JWT Token：
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
