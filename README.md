@@ -324,6 +324,23 @@ chmod +x docker-build-push-linux.sh
 
 推送完成后，请在 Docker Hub 仓库页面确认仓库可见性为 Public。`docker push` 只负责上传镜像，不会自动修改 Docker Hub 仓库公开/私有状态。
 
+如果需要同步 Docker Hub 仓库的短描述和完整描述，可先编辑根目录的 `dockerhub-description.md`，然后运行：
+
+Windows PowerShell：
+
+```powershell
+.\update-dockerhub-description.ps1
+```
+
+Linux：
+
+```bash
+chmod +x update-dockerhub-description.sh
+./update-dockerhub-description.sh
+```
+
+脚本会要求输入 Docker Hub 用户名、namespace、仓库名和 Docker Hub Access Token。Token 只用于本次 API 调用，不会写入项目文件。Docker Hub 的 Category 通常仍需要在网页 UI 中手动选择。
+
 如果 frpc 运行在宿主机，容器内的 `127.0.0.1` 指向容器自身，需要按实际环境覆盖 frpc API 地址。例如 Docker Desktop：
 
 ```bash
