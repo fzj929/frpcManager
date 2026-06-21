@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Security.Cryptography.X509Certificates;
 using FrpcManager.Api.Data;
 using FrpcManager.Api.Models;
-using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.EntityFrameworkCore;
 
 namespace FrpcManager.Api.Services;
@@ -95,9 +94,8 @@ public class HttpsProxyRuntimeService
         });
 
         await app.StartAsync();
-        var addresses = app.Services.GetRequiredService<IServerAddressesFeature>();
         _running[rule.Id] = new RunningProxy(app);
-        _logger.LogInformation("HTTPS 代理已启动：{Name} {Address} -> {Target}", rule.Name, string.Join(",", addresses.Addresses), targetBaseUri);
+        _logger.LogInformation("HTTPS 代理已启动：{Name} https://0.0.0.0:{Port} -> {Target}", rule.Name, rule.ListenPort, targetBaseUri);
     }
 
     private X509Certificate2 LoadCertificate(HttpsProxyRule rule)

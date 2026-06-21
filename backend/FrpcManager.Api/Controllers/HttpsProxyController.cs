@@ -83,7 +83,14 @@ public class HttpsProxyController : ControllerBase
 
         _db.HttpsProxyRules.Add(rule);
         await _db.SaveChangesAsync();
-        await _runtime.RestartAsync(rule);
+        var startError = await TryRestartAsync(rule);
+        if (startError != null)
+        {
+            _db.HttpsProxyRules.Remove(rule);
+            await _db.SaveChangesAsync();
+            return startError;
+        }
+
         await _auditLogService.LogAsync(HttpContext, "https-proxy.create", rule.Name, $"{rule.ListenPort}->{rule.TargetUrl}");
         return Ok(ToResponse(rule));
     }
@@ -137,7 +144,10 @@ public class HttpsProxyController : ControllerBase
             return BadRequest(new { message = "请上传 Nginx 证书文件和私钥文件" });
 
         await _db.SaveChangesAsync();
-        await _runtime.RestartAsync(rule);
+        var startError = await TryRestartAsync(rule);
+        if (startError != null)
+            return startError;
+
         await _auditLogService.LogAsync(HttpContext, "https-proxy.update", rule.Name, $"{rule.ListenPort}->{rule.TargetUrl}");
         return Ok(ToResponse(rule));
     }
@@ -166,7 +176,15 @@ public class HttpsProxyController : ControllerBase
         rule.IsEnabled = true;
         rule.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
-        await _runtime.RestartAsync(rule);
+        var startError = await TryRestartAsync(rule);
+        if (startError != null)
+        {
+            rule.IsEnabled = false;
+            rule.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+            return startError;
+        }
+
         await _auditLogService.LogAsync(HttpContext, "https-proxy.enable", rule.Name);
         return Ok(ToResponse(rule));
     }
@@ -205,6 +223,30 @@ public class HttpsProxyController : ControllerBase
             return BadRequest(new { message = "监听端口已被其他规则使用" });
 
         return null;
+    }
+
+    private async Task<IActionResult?> TryRestartAsync(HttpsProxyRule rule)
+    {
+        try
+        {
+            await _runtime.RestartAsync(rule);
+            return null;
+        }
+        catch (IOException ex)
+        {
+            await _runtime.StopAsync(rule.Id);
+            return BadRequest(new { message = $"HTTPS 代理启动失败，端口可能已被占用：{ex.Message}" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            await _runtime.StopAsync(rule.Id);
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            await _runtime.StopAsync(rule.Id);
+            return StatusCode(500, new { message = $"HTTPS 代理启动失败：{ex.Message}" });
+        }
     }
 
     private static string NormalizeTargetUrl(string targetUrl)
