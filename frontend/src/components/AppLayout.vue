@@ -27,6 +27,10 @@
           <el-icon><Monitor /></el-icon>
           <template #title>唤醒主机</template>
         </el-menu-item>
+        <el-menu-item index="/wake-records">
+          <el-icon><Timer /></el-icon>
+          <template #title>唤醒记录</template>
+        </el-menu-item>
         <el-menu-item index="/audit-logs">
           <el-icon><Document /></el-icon>
           <template #title>操作日志</template>
@@ -105,6 +109,7 @@ const pageTitles: Record<string, string> = {
   '/dashboard': '仪表板',
   '/proxies': '通道管理',
   '/wake': '唤醒主机',
+  '/wake-records': '唤醒记录',
   '/audit-logs': '操作日志',
   '/settings': '系统设置'
 }

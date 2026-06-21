@@ -20,6 +20,7 @@ FrpC Manager is a web management platform for frpc tunnels, built with **Vue 3 +
 - **Health checks**: check database and frpc Web API connectivity
 - **Backup / restore**: export and restore tunnel and frpc configuration
 - **Wake-on-LAN**: send a magic packet to wake a LAN computer by MAC address
+- **Wake records / scheduled wake**: keep Wake-on-LAN history, wake again from history, and run daily scheduled wake tasks
 - **Docker Compose**: build and run the service with one command
 
 ---
@@ -176,6 +177,15 @@ GET /api/health
 
 The response includes database status, frpc Web API status, and the check time.
 
+### Wake Records and Scheduled Wake
+
+The Wake Records page manages Wake-on-LAN history and scheduled tasks:
+
+- Manual and scheduled wake actions record MAC address, broadcast address, port, source, result, and time
+- Wake a host again from any history record
+- Create daily scheduled wake tasks at a fixed time
+- Enable, disable, edit, delete, or run scheduled wake tasks immediately
+
 ### Backup / Restore
 
 The Settings page can export and restore tunnel and frpc configuration:
@@ -252,6 +262,13 @@ Most endpoints require a JWT token, except setup status, first-run setup, and he
 | `GET` | `/api/config/status` | Get live frpc tunnel status |
 | `POST` | `/api/config/reload` | Manually trigger frpc reload |
 | `POST` | `/api/wake-on-lan` | Send a Wake-on-LAN magic packet |
+| `GET` | `/api/wake-on-lan/logs` | List Wake-on-LAN records |
+| `POST` | `/api/wake-on-lan/logs/{id}/wake` | Wake again from a history record |
+| `GET` | `/api/wake-on-lan/schedules` | List scheduled wake tasks |
+| `POST` | `/api/wake-on-lan/schedules` | Create a scheduled wake task |
+| `PUT` | `/api/wake-on-lan/schedules/{id}` | Update a scheduled wake task |
+| `DELETE` | `/api/wake-on-lan/schedules/{id}` | Delete a scheduled wake task |
+| `POST` | `/api/wake-on-lan/schedules/{id}/wake` | Run a scheduled wake task immediately |
 | `GET` | `/api/audit-logs` | List audit logs |
 | `GET` | `/api/backup` | Export tunnel and frpc config backup |
 | `POST` | `/api/backup/restore` | Restore configuration backup |

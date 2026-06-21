@@ -4,6 +4,8 @@ All notable changes to this project should be documented in this file.
 
 ## Unreleased
 
+- Added Wake-on-LAN records with wake-again support.
+- Added daily scheduled Wake-on-LAN tasks.
 - Added English README documentation.
 - Added Docker Hub image build/push scripts.
 - Added Docker Hub repository description update scripts.

@@ -10,6 +10,8 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Proxy> Proxies => Set<Proxy>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<WakeLog> WakeLogs => Set<WakeLog>();
+    public DbSet<WakeSchedule> WakeSchedules => Set<WakeSchedule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -28,6 +30,18 @@ public class AppDbContext : DbContext
         {
             e.HasKey(l => l.Id);
             e.HasIndex(l => l.CreatedAt);
+        });
+
+        modelBuilder.Entity<WakeLog>(e =>
+        {
+            e.HasKey(l => l.Id);
+            e.HasIndex(l => l.CreatedAt);
+        });
+
+        modelBuilder.Entity<WakeSchedule>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.HasIndex(s => s.IsEnabled);
         });
     }
 }

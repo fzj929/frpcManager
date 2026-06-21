@@ -97,6 +97,7 @@ builder.Services.AddScoped<BackupService>();
 builder.Services.AddSingleton<LoginAttemptLimiter>();
 builder.Services.AddSingleton<TomlService>();
 builder.Services.AddHostedService<ChannelExpiryService>();
+builder.Services.AddHostedService<WakeScheduleService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -276,6 +277,42 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
             """);
         if (!MySqlIndexExists(db, "AuditLogs", "IX_AuditLogs_CreatedAt"))
             db.Database.ExecuteSqlRaw("""CREATE INDEX `IX_AuditLogs_CreatedAt` ON `AuditLogs` (`CreatedAt`);""");
+
+        db.Database.ExecuteSqlRaw("""
+            CREATE TABLE IF NOT EXISTS `WakeLogs` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `MacAddress` longtext NOT NULL,
+                `BroadcastAddress` longtext NOT NULL,
+                `Port` int NOT NULL,
+                `Source` longtext NOT NULL,
+                `Username` longtext NOT NULL,
+                `IpAddress` longtext NOT NULL,
+                `Success` tinyint(1) NOT NULL,
+                `Message` longtext NOT NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                CONSTRAINT `PK_WakeLogs` PRIMARY KEY (`Id`)
+            );
+            """);
+        if (!MySqlIndexExists(db, "WakeLogs", "IX_WakeLogs_CreatedAt"))
+            db.Database.ExecuteSqlRaw("""CREATE INDEX `IX_WakeLogs_CreatedAt` ON `WakeLogs` (`CreatedAt`);""");
+
+        db.Database.ExecuteSqlRaw("""
+            CREATE TABLE IF NOT EXISTS `WakeSchedules` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `Name` longtext NOT NULL,
+                `MacAddress` longtext NOT NULL,
+                `BroadcastAddress` longtext NOT NULL,
+                `Port` int NOT NULL,
+                `TimeOfDay` longtext NOT NULL,
+                `IsEnabled` tinyint(1) NOT NULL,
+                `LastRunAt` datetime(6) NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                CONSTRAINT `PK_WakeSchedules` PRIMARY KEY (`Id`)
+            );
+            """);
+        if (!MySqlIndexExists(db, "WakeSchedules", "IX_WakeSchedules_IsEnabled"))
+            db.Database.ExecuteSqlRaw("""CREATE INDEX `IX_WakeSchedules_IsEnabled` ON `WakeSchedules` (`IsEnabled`);""");
         return;
     }
 
@@ -296,6 +333,38 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
         );
         """);
     db.Database.ExecuteSqlRaw("""CREATE INDEX IF NOT EXISTS "IX_AuditLogs_CreatedAt" ON "AuditLogs" ("CreatedAt");""");
+
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "WakeLogs" (
+            "Id" INTEGER NOT NULL CONSTRAINT "PK_WakeLogs" PRIMARY KEY AUTOINCREMENT,
+            "MacAddress" TEXT NOT NULL,
+            "BroadcastAddress" TEXT NOT NULL,
+            "Port" INTEGER NOT NULL,
+            "Source" TEXT NOT NULL,
+            "Username" TEXT NOT NULL,
+            "IpAddress" TEXT NOT NULL,
+            "Success" INTEGER NOT NULL,
+            "Message" TEXT NOT NULL,
+            "CreatedAt" TEXT NOT NULL
+        );
+        """);
+    db.Database.ExecuteSqlRaw("""CREATE INDEX IF NOT EXISTS "IX_WakeLogs_CreatedAt" ON "WakeLogs" ("CreatedAt");""");
+
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "WakeSchedules" (
+            "Id" INTEGER NOT NULL CONSTRAINT "PK_WakeSchedules" PRIMARY KEY AUTOINCREMENT,
+            "Name" TEXT NOT NULL,
+            "MacAddress" TEXT NOT NULL,
+            "BroadcastAddress" TEXT NOT NULL,
+            "Port" INTEGER NOT NULL,
+            "TimeOfDay" TEXT NOT NULL,
+            "IsEnabled" INTEGER NOT NULL,
+            "LastRunAt" TEXT NULL,
+            "CreatedAt" TEXT NOT NULL,
+            "UpdatedAt" TEXT NULL
+        );
+        """);
+    db.Database.ExecuteSqlRaw("""CREATE INDEX IF NOT EXISTS "IX_WakeSchedules_IsEnabled" ON "WakeSchedules" ("IsEnabled");""");
 }
 
 static void AddSqliteColumnIfMissing(AppDbContext db, string tableName, string columnName, string alterSql)

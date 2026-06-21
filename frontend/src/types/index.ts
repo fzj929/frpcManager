@@ -52,6 +52,32 @@ export interface WakeOnLanResponse {
   message: string
 }
 
+export interface WakeLog {
+  id: number
+  macAddress: string
+  broadcastAddress: string
+  port: number
+  source: string
+  username: string
+  ipAddress: string
+  success: boolean
+  message: string
+  createdAt: string
+}
+
+export interface WakeSchedule {
+  id: number
+  name: string
+  macAddress: string
+  broadcastAddress: string
+  port: number
+  timeOfDay: string
+  isEnabled: boolean
+  lastRunAt: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
 export interface AuditLog {
   id: number
   username: string

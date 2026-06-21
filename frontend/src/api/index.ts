@@ -61,6 +61,13 @@ export const reloadFrpc = () => api.post('/config/reload')
 
 // Wake-on-LAN
 export const wakeOnLan = (data: object) => api.post('/wake-on-lan', data)
+export const fetchWakeLogs = (limit = 200) => api.get('/wake-on-lan/logs', { params: { limit } })
+export const wakeFromLog = (id: number) => api.post(`/wake-on-lan/logs/${id}/wake`)
+export const fetchWakeSchedules = () => api.get('/wake-on-lan/schedules')
+export const createWakeSchedule = (data: object) => api.post('/wake-on-lan/schedules', data)
+export const updateWakeSchedule = (id: number, data: object) => api.put(`/wake-on-lan/schedules/${id}`, data)
+export const deleteWakeSchedule = (id: number) => api.delete(`/wake-on-lan/schedules/${id}`)
+export const wakeFromSchedule = (id: number) => api.post(`/wake-on-lan/schedules/${id}/wake`)
 
 // Audit logs
 export const fetchAuditLogs = (limit = 200) => api.get('/audit-logs', { params: { limit } })

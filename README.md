@@ -20,6 +20,7 @@
 - **操作日志**：记录登录、通道、配置、备份恢复、Wake-on-LAN 等关键操作
 - **健康检查**：检查数据库和 frpc Web 管理接口状态，便于部署后排障
 - **配置备份 / 恢复**：支持导出通道与 frpc 配置，并从备份文件恢复
+- **唤醒记录 / 定时唤醒**：记录 Wake-on-LAN 发送历史，支持再次唤醒和每日定时唤醒
 - **Docker Compose**：提供 `docker-compose.yml`，可一条命令构建并启动容器
 - **仪表板**：统计卡片 + 活动通道列表 + 服务器信息一览
 
@@ -182,6 +183,15 @@ GET /api/health
 
 返回内容包含数据库状态、frpc Web 管理接口状态和检查时间，适合用于部署后验证或外部监控探活。
 
+### 唤醒记录与定时唤醒
+
+唤醒记录页面用于管理 Wake-on-LAN 历史和定时任务：
+
+- 每次手动唤醒和定时唤醒都会记录 MAC 地址、广播地址、端口、来源、结果和时间
+- 可从历史记录中点击“再次唤醒”
+- 可创建每日固定时间执行的定时唤醒任务
+- 定时任务支持启用、停用、编辑、删除和立即唤醒
+
 ### 配置备份 / 恢复
 
 系统设置页面提供配置备份和恢复入口：
@@ -291,6 +301,13 @@ docker compose --profile mysql up -d --build
 | `GET` | `/api/config/status` | 获取 frpc 实时通道状态 |
 | `POST` | `/api/config/reload` | 手动触发 frpc reload |
 | `POST` | `/api/wake-on-lan` | 根据 MAC 地址发送 Wake-on-LAN 魔术数据包 |
+| `GET` | `/api/wake-on-lan/logs` | 获取 Wake-on-LAN 唤醒记录 |
+| `POST` | `/api/wake-on-lan/logs/{id}/wake` | 根据历史记录再次唤醒 |
+| `GET` | `/api/wake-on-lan/schedules` | 获取定时唤醒任务 |
+| `POST` | `/api/wake-on-lan/schedules` | 创建定时唤醒任务 |
+| `PUT` | `/api/wake-on-lan/schedules/{id}` | 更新定时唤醒任务 |
+| `DELETE` | `/api/wake-on-lan/schedules/{id}` | 删除定时唤醒任务 |
+| `POST` | `/api/wake-on-lan/schedules/{id}/wake` | 立即执行定时唤醒任务 |
 | `GET` | `/api/auth/setup-status` | 获取是否需要首次初始化 |
 | `POST` | `/api/auth/setup` | 首次启动时创建管理员账号 |
 | `GET` | `/api/audit-logs` | 获取操作日志 |

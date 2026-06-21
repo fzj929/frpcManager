@@ -41,6 +41,11 @@ const router = createRouter({
           component: () => import('@/views/WakeOnLanView.vue')
         },
         {
+          path: 'wake-records',
+          name: 'WakeRecords',
+          component: () => import('@/views/WakeRecordsView.vue')
+        },
+        {
           path: 'audit-logs',
           name: 'AuditLogs',
           component: () => import('@/views/AuditLogsView.vue')
