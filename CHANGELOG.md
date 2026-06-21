@@ -6,6 +6,7 @@ All notable changes to this project should be documented in this file.
 
 - Added Wake-on-LAN records with wake-again support.
 - Added daily scheduled Wake-on-LAN tasks.
+- Added lightweight HTTPS reverse proxy rules with default certificate, IIS PFX/P12 certificate, and Nginx PEM+KEY certificate support.
 - Added English README documentation.
 - Added Docker Hub image build/push scripts.
 - Added Docker Hub repository description update scripts.

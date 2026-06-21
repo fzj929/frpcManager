@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<WakeLog> WakeLogs => Set<WakeLog>();
     public DbSet<WakeSchedule> WakeSchedules => Set<WakeSchedule>();
+    public DbSet<HttpsProxyRule> HttpsProxyRules => Set<HttpsProxyRule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -42,6 +43,13 @@ public class AppDbContext : DbContext
         {
             e.HasKey(s => s.Id);
             e.HasIndex(s => s.IsEnabled);
+        });
+
+        modelBuilder.Entity<HttpsProxyRule>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => r.ListenPort).IsUnique();
+            e.HasIndex(r => r.IsEnabled);
         });
     }
 }

@@ -31,6 +31,10 @@
           <el-icon><Timer /></el-icon>
           <template #title>唤醒记录</template>
         </el-menu-item>
+        <el-menu-item index="/https-proxies">
+          <el-icon><Lock /></el-icon>
+          <template #title>HTTPS代理</template>
+        </el-menu-item>
         <el-menu-item index="/audit-logs">
           <el-icon><Document /></el-icon>
           <template #title>操作日志</template>
@@ -110,6 +114,7 @@ const pageTitles: Record<string, string> = {
   '/proxies': '通道管理',
   '/wake': '唤醒主机',
   '/wake-records': '唤醒记录',
+  '/https-proxies': 'HTTPS代理',
   '/audit-logs': '操作日志',
   '/settings': '系统设置'
 }

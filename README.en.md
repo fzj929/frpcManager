@@ -21,6 +21,7 @@ FrpC Manager is a web management platform for frpc tunnels, built with **Vue 3 +
 - **Backup / restore**: export and restore tunnel and frpc configuration
 - **Wake-on-LAN**: send a magic packet to wake a LAN computer by MAC address
 - **Wake records / scheduled wake**: keep Wake-on-LAN history, wake again from history, and run daily scheduled wake tasks
+- **Lightweight HTTPS proxy**: listen on a local HTTPS port and forward requests to an internal HTTP service, with optional PFX certificate upload
 - **Docker Compose**: build and run the service with one command
 
 ---
@@ -186,6 +187,45 @@ The Wake Records page manages Wake-on-LAN history and scheduled tasks:
 - Create daily scheduled wake tasks at a fixed time
 - Enable, disable, edit, delete, or run scheduled wake tasks immediately
 
+### Lightweight HTTPS Proxy
+
+The HTTPS Proxy page wraps an internal HTTP service with a local HTTPS endpoint:
+
+- Listen on a user-defined HTTPS port
+- Forward requests to a target HTTP URL, such as `http://192.168.1.20:8080`
+- Use the default website certificate, or upload an IIS certificate or Nginx certificate
+- Enable, disable, edit, and delete proxy rules
+- Restore enabled proxy rules automatically on service startup
+
+Example:
+
+```text
+User access: https://your-host:8443
+Internal target: http://192.168.1.20:8080
+```
+
+This feature is intended as a lightweight reverse proxy for small internal services. For advanced path rewriting, multi-domain SNI, load balancing, or automatic certificate issuance, use Nginx, Caddy, or Traefik.
+
+Certificate types:
+
+| UI option | Common source | Required files |
+| --- | --- | --- |
+| Default certificate | Built-in management site certificate | No upload required |
+| IIS certificate | Certificate exported from Windows IIS | `.pfx` or `.p12`, with optional password |
+| Nginx certificate | Nginx, Caddy, or Let's Encrypt style certificate | Certificate file `.pem/.crt/.cer` + private key `.key` |
+
+When running in Docker, map each proxy listen port explicitly. For example, if the proxy listens on `8443`:
+
+```bash
+docker run -d \
+  --name frpc-manager \
+  -p 6887:6887 \
+  -p 6888:6888 \
+  -p 8443:8443 \
+  -v frpc-manager-data:/app/data \
+  fengzhengjin/frpc-manager:latest
+```
+
 ### Backup / Restore
 
 The Settings page can export and restore tunnel and frpc configuration:
@@ -269,6 +309,12 @@ Most endpoints require a JWT token, except setup status, first-run setup, and he
 | `PUT` | `/api/wake-on-lan/schedules/{id}` | Update a scheduled wake task |
 | `DELETE` | `/api/wake-on-lan/schedules/{id}` | Delete a scheduled wake task |
 | `POST` | `/api/wake-on-lan/schedules/{id}/wake` | Run a scheduled wake task immediately |
+| `GET` | `/api/https-proxies` | List HTTPS proxy rules |
+| `POST` | `/api/https-proxies` | Create an HTTPS proxy rule, with optional PFX upload |
+| `PUT` | `/api/https-proxies/{id}` | Update an HTTPS proxy rule |
+| `DELETE` | `/api/https-proxies/{id}` | Delete an HTTPS proxy rule |
+| `PUT` | `/api/https-proxies/{id}/enable` | Enable an HTTPS proxy rule |
+| `PUT` | `/api/https-proxies/{id}/disable` | Disable an HTTPS proxy rule |
 | `GET` | `/api/audit-logs` | List audit logs |
 | `GET` | `/api/backup` | Export tunnel and frpc config backup |
 | `POST` | `/api/backup/restore` | Restore configuration backup |

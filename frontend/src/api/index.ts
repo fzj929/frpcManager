@@ -76,3 +76,13 @@ export const fetchAuditLogs = (limit = 200) => api.get('/audit-logs', { params: 
 export const exportBackup = () => api.get('/backup')
 export const restoreBackup = (data: object) => api.post('/backup/restore', data)
 export const fetchHealth = () => api.get('/health')
+
+// HTTPS reverse proxy
+export const fetchHttpsProxies = () => api.get('/https-proxies')
+export const createHttpsProxy = (data: FormData) =>
+  api.post('/https-proxies', data, { headers: { 'Content-Type': 'multipart/form-data' } })
+export const updateHttpsProxy = (id: number, data: FormData) =>
+  api.put(`/https-proxies/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
+export const deleteHttpsProxy = (id: number) => api.delete(`/https-proxies/${id}`)
+export const enableHttpsProxy = (id: number) => api.put(`/https-proxies/${id}/enable`)
+export const disableHttpsProxy = (id: number) => api.put(`/https-proxies/${id}/disable`)

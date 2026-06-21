@@ -95,3 +95,17 @@ export interface HealthStatus {
   frpc: string
   checkedAt: string
 }
+
+export interface HttpsProxyRule {
+  id: number
+  name: string
+  listenPort: number
+  targetUrl: string
+  certificateMode: string
+  hasCustomCertificate: boolean
+  hasPrivateKey: boolean
+  description: string
+  isEnabled: boolean
+  createdAt: string
+  updatedAt: string | null
+}

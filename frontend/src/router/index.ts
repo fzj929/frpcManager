@@ -46,6 +46,11 @@ const router = createRouter({
           component: () => import('@/views/WakeRecordsView.vue')
         },
         {
+          path: 'https-proxies',
+          name: 'HttpsProxies',
+          component: () => import('@/views/HttpsProxiesView.vue')
+        },
+        {
           path: 'audit-logs',
           name: 'AuditLogs',
           component: () => import('@/views/AuditLogsView.vue')

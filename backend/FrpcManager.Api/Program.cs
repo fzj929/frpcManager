@@ -94,10 +94,12 @@ builder.Services.AddScoped<FrpcApiService>();
 builder.Services.AddScoped<WakeOnLanService>();
 builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddScoped<BackupService>();
+builder.Services.AddSingleton<HttpsProxyRuntimeService>();
 builder.Services.AddSingleton<LoginAttemptLimiter>();
 builder.Services.AddSingleton<TomlService>();
 builder.Services.AddHostedService<ChannelExpiryService>();
 builder.Services.AddHostedService<WakeScheduleService>();
+builder.Services.AddHostedService<HttpsProxyStartupService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -313,6 +315,29 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
             """);
         if (!MySqlIndexExists(db, "WakeSchedules", "IX_WakeSchedules_IsEnabled"))
             db.Database.ExecuteSqlRaw("""CREATE INDEX `IX_WakeSchedules_IsEnabled` ON `WakeSchedules` (`IsEnabled`);""");
+
+        db.Database.ExecuteSqlRaw("""
+            CREATE TABLE IF NOT EXISTS `HttpsProxyRules` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `Name` longtext NOT NULL,
+                `ListenPort` int NOT NULL,
+                `TargetUrl` longtext NOT NULL,
+                `CertificateMode` longtext NOT NULL,
+                `CertificatePath` longtext NOT NULL,
+                `CertificateKeyPath` longtext NOT NULL,
+                `CertificatePassword` longtext NOT NULL,
+                `Description` longtext NOT NULL,
+                `IsEnabled` tinyint(1) NOT NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                CONSTRAINT `PK_HttpsProxyRules` PRIMARY KEY (`Id`)
+            );
+            """);
+        AddMySqlColumnIfMissing(db, "HttpsProxyRules", "CertificateKeyPath", "ALTER TABLE `HttpsProxyRules` ADD COLUMN `CertificateKeyPath` varchar(1024) NOT NULL DEFAULT ''");
+        if (!MySqlIndexExists(db, "HttpsProxyRules", "IX_HttpsProxyRules_ListenPort"))
+            db.Database.ExecuteSqlRaw("""CREATE UNIQUE INDEX `IX_HttpsProxyRules_ListenPort` ON `HttpsProxyRules` (`ListenPort`);""");
+        if (!MySqlIndexExists(db, "HttpsProxyRules", "IX_HttpsProxyRules_IsEnabled"))
+            db.Database.ExecuteSqlRaw("""CREATE INDEX `IX_HttpsProxyRules_IsEnabled` ON `HttpsProxyRules` (`IsEnabled`);""");
         return;
     }
 
@@ -365,6 +390,26 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
         );
         """);
     db.Database.ExecuteSqlRaw("""CREATE INDEX IF NOT EXISTS "IX_WakeSchedules_IsEnabled" ON "WakeSchedules" ("IsEnabled");""");
+
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "HttpsProxyRules" (
+            "Id" INTEGER NOT NULL CONSTRAINT "PK_HttpsProxyRules" PRIMARY KEY AUTOINCREMENT,
+            "Name" TEXT NOT NULL,
+            "ListenPort" INTEGER NOT NULL,
+            "TargetUrl" TEXT NOT NULL,
+            "CertificateMode" TEXT NOT NULL,
+            "CertificatePath" TEXT NOT NULL,
+            "CertificateKeyPath" TEXT NOT NULL,
+            "CertificatePassword" TEXT NOT NULL,
+            "Description" TEXT NOT NULL,
+            "IsEnabled" INTEGER NOT NULL,
+            "CreatedAt" TEXT NOT NULL,
+            "UpdatedAt" TEXT NULL
+        );
+        """);
+    AddSqliteColumnIfMissing(db, "HttpsProxyRules", "CertificateKeyPath", "ALTER TABLE HttpsProxyRules ADD COLUMN CertificateKeyPath TEXT NOT NULL DEFAULT ''");
+    db.Database.ExecuteSqlRaw("""CREATE UNIQUE INDEX IF NOT EXISTS "IX_HttpsProxyRules_ListenPort" ON "HttpsProxyRules" ("ListenPort");""");
+    db.Database.ExecuteSqlRaw("""CREATE INDEX IF NOT EXISTS "IX_HttpsProxyRules_IsEnabled" ON "HttpsProxyRules" ("IsEnabled");""");
 }
 
 static void AddSqliteColumnIfMissing(AppDbContext db, string tableName, string columnName, string alterSql)

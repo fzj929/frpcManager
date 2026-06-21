@@ -21,6 +21,7 @@
 - **健康检查**：检查数据库和 frpc Web 管理接口状态，便于部署后排障
 - **配置备份 / 恢复**：支持导出通道与 frpc 配置，并从备份文件恢复
 - **唤醒记录 / 定时唤醒**：记录 Wake-on-LAN 发送历史，支持再次唤醒和每日定时唤醒
+- **轻量 HTTPS 代理**：本机监听 HTTPS 端口，将请求转发到内网 HTTP 服务，支持上传 PFX 证书
 - **Docker Compose**：提供 `docker-compose.yml`，可一条命令构建并启动容器
 - **仪表板**：统计卡片 + 活动通道列表 + 服务器信息一览
 
@@ -192,6 +193,45 @@ GET /api/health
 - 可创建每日固定时间执行的定时唤醒任务
 - 定时任务支持启用、停用、编辑、删除和立即唤醒
 
+### 轻量 HTTPS 代理
+
+HTTPS 代理页面可将一个内网 HTTP 服务包装成 HTTPS 访问：
+
+- 本机监听用户指定的 HTTPS 端口
+- 转发到一个目标 HTTP URL，例如 `http://192.168.1.20:8080`
+- 证书可使用网站默认证书，也可上传 IIS 证书或 Nginx 证书
+- 支持启用、停用、编辑和删除规则
+- 服务启动时会自动恢复已启用的代理规则
+
+示例：
+
+```text
+用户访问：https://your-host:8443
+内部转发：http://192.168.1.20:8080
+```
+
+该功能定位为轻量反向代理，适合小规模内网服务 HTTPS 包装；复杂路径重写、多域名 SNI、负载均衡、自动证书申请等场景仍建议使用 Nginx、Caddy 或 Traefik。
+
+证书类型说明：
+
+| 页面选项 | 适用来源 | 需要上传 |
+|------|------|------|
+| 默认证书 | 使用管理平台自带证书 | 不需要上传 |
+| IIS证书 | Windows IIS 导出的证书 | `.pfx` 或 `.p12`，可填写证书密码 |
+| Nginx证书 | Nginx、Caddy、Let's Encrypt 常见证书 | 证书文件 `.pem/.crt/.cer` + 私钥文件 `.key` |
+
+Docker 部署时，如果代理监听端口为 `8443`，需要额外映射端口：
+
+```bash
+docker run -d \
+  --name frpc-manager \
+  -p 6887:6887 \
+  -p 6888:6888 \
+  -p 8443:8443 \
+  -v frpc-manager-data:/app/data \
+  fengzhengjin/frpc-manager:latest
+```
+
 ### 配置备份 / 恢复
 
 系统设置页面提供配置备份和恢复入口：
@@ -308,6 +348,12 @@ docker compose --profile mysql up -d --build
 | `PUT` | `/api/wake-on-lan/schedules/{id}` | 更新定时唤醒任务 |
 | `DELETE` | `/api/wake-on-lan/schedules/{id}` | 删除定时唤醒任务 |
 | `POST` | `/api/wake-on-lan/schedules/{id}/wake` | 立即执行定时唤醒任务 |
+| `GET` | `/api/https-proxies` | 获取 HTTPS 代理规则 |
+| `POST` | `/api/https-proxies` | 创建 HTTPS 代理规则，支持上传 PFX 证书 |
+| `PUT` | `/api/https-proxies/{id}` | 更新 HTTPS 代理规则 |
+| `DELETE` | `/api/https-proxies/{id}` | 删除 HTTPS 代理规则 |
+| `PUT` | `/api/https-proxies/{id}/enable` | 启用 HTTPS 代理规则 |
+| `PUT` | `/api/https-proxies/{id}/disable` | 停用 HTTPS 代理规则 |
 | `GET` | `/api/auth/setup-status` | 获取是否需要首次初始化 |
 | `POST` | `/api/auth/setup` | 首次启动时创建管理员账号 |
 | `GET` | `/api/audit-logs` | 获取操作日志 |
