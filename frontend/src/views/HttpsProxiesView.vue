@@ -10,7 +10,7 @@
       type="info"
       :closable="false"
       show-icon
-      title="轻量 HTTPS 反向代理会在本机监听 HTTPS 端口，并转发到内网 HTTP 服务。默认使用网站自带证书，也可以上传 PFX 证书。"
+      title="轻量 HTTPS 反向代理会在本机监听 HTTPS 端口，并转发到内网 HTTP 服务。证书可使用网站默认证书，也可以上传 IIS 证书（.pfx/.p12）或 Nginx 证书（.pem/.crt/.cer + .key）。"
     />
 
     <el-card class="table-card">
