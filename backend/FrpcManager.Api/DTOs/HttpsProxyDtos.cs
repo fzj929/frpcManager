@@ -21,5 +21,7 @@ public record HttpsProxyRuleRequest(
     string CertificateMode,
     string? CertificatePassword,
     string? Description,
-    bool IsEnabled
+    bool IsEnabled,
+    bool CreateFrpChannel,
+    string? FrpChannelName
 );

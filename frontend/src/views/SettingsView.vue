@@ -164,7 +164,7 @@
             </div>
           </template>
           <el-descriptions :column="1">
-            <el-descriptions-item label="版本">v1.0.0</el-descriptions-item>
+            <el-descriptions-item label="版本">v1.2.0</el-descriptions-item>
             <el-descriptions-item label="后端">ASP.NET Core 8.0</el-descriptions-item>
             <el-descriptions-item label="前端">Vue 3 + Element Plus</el-descriptions-item>
             <el-descriptions-item label="数据库">SQLite</el-descriptions-item>

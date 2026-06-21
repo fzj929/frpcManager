@@ -50,7 +50,7 @@
       </el-table>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑 HTTPS 代理' : '新增 HTTPS 代理'" width="560px">
+    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑 HTTPS 代理' : '新增 HTTPS 代理'" width="620px">
       <el-form ref="formRef" :model="form" :rules="rulesDef" label-width="120px">
         <el-form-item label="名称" prop="name">
           <el-input v-model.trim="form.name" placeholder="例如：内网管理后台" />
@@ -63,6 +63,25 @@
           <el-input v-model.trim="form.targetUrl" placeholder="http://192.168.1.10:8080" />
           <div class="form-hint">第一版仅支持转发到 HTTP 地址。</div>
         </el-form-item>
+        <template v-if="!editingId">
+          <el-form-item label="frp 通道">
+            <el-checkbox v-model="form.createFrpChannel">同时创建 frp 通道</el-checkbox>
+            <div class="form-hint">
+              通道会默认停用。创建后请到通道管理中打开通道，外网才能通过 frp 访问该 HTTPS 代理。
+            </div>
+          </el-form-item>
+          <el-form-item v-if="form.createFrpChannel" label="通道名称" prop="frpChannelName">
+            <el-input
+              v-model.trim="form.frpChannelName"
+              placeholder="例如：https-office"
+              maxlength="64"
+              show-word-limit
+            />
+            <div class="form-hint">
+              规则同通道管理：只能包含字母、数字、下划线和连字符。本地 IP 为 127.0.0.1，本地端口和远程端口都使用 HTTPS 监听端口。
+            </div>
+          </el-form-item>
+        </template>
         <el-form-item label="证书来源">
           <el-radio-group v-model="form.certificateMode">
             <el-radio-button label="default">默认证书</el-radio-button>
@@ -164,7 +183,9 @@ const form = reactive({
   certificateMode: 'default',
   certificatePassword: '',
   description: '',
-  isEnabled: true
+  isEnabled: true,
+  createFrpChannel: false,
+  frpChannelName: ''
 })
 
 const rulesDef: FormRules = {
@@ -176,6 +197,29 @@ const rulesDef: FormRules = {
       validator: (_rule, value, callback) => {
         if (!/^http:\/\/.+/i.test(value)) callback(new Error('目标地址必须是 HTTP URL'))
         else callback()
+      },
+      trigger: 'blur'
+    }
+  ],
+  frpChannelName: [
+    {
+      validator: (_rule, value, callback) => {
+        if (editingId.value || !form.createFrpChannel) {
+          callback()
+          return
+        }
+
+        if (!value) {
+          callback(new Error('请输入通道名称'))
+          return
+        }
+
+        if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
+          callback(new Error('只能包含字母、数字、下划线和连字符'))
+          return
+        }
+
+        callback()
       },
       trigger: 'blur'
     }
@@ -201,6 +245,8 @@ function openDialog(row?: HttpsProxyRule) {
   form.certificatePassword = ''
   form.description = row?.description ?? ''
   form.isEnabled = row?.isEnabled ?? true
+  form.createFrpChannel = false
+  form.frpChannelName = ''
   certFile.value = null
   keyFile.value = null
   dialogVisible.value = true
@@ -232,6 +278,8 @@ function buildFormData() {
   data.append('certificatePassword', form.certificatePassword)
   data.append('description', form.description)
   data.append('isEnabled', String(form.isEnabled))
+  data.append('createFrpChannel', String(!editingId.value && form.createFrpChannel))
+  data.append('frpChannelName', form.frpChannelName)
   if (certFile.value) data.append('certificate', certFile.value)
   if (keyFile.value) data.append('privateKey', keyFile.value)
   return data
@@ -259,7 +307,9 @@ async function saveRule() {
       ElMessage.success('HTTPS 代理已更新')
     } else {
       await createHttpsProxy(buildFormData())
-      ElMessage.success('HTTPS 代理已创建')
+      ElMessage.success(form.createFrpChannel
+        ? 'HTTPS 代理已创建，frp 通道已添加，请到通道管理中打开通道后再访问'
+        : 'HTTPS 代理已创建')
     }
     dialogVisible.value = false
     await loadRules()

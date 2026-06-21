@@ -5,6 +5,7 @@ using FrpcManager.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 namespace FrpcManager.Api.Controllers;
 
@@ -15,12 +16,18 @@ public class HttpsProxyController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly HttpsProxyRuntimeService _runtime;
+    private readonly ProxyService _proxyService;
     private readonly AuditLogService _auditLogService;
 
-    public HttpsProxyController(AppDbContext db, HttpsProxyRuntimeService runtime, AuditLogService auditLogService)
+    public HttpsProxyController(
+        AppDbContext db,
+        HttpsProxyRuntimeService runtime,
+        ProxyService proxyService,
+        AuditLogService auditLogService)
     {
         _db = db;
         _runtime = runtime;
+        _proxyService = proxyService;
         _auditLogService = auditLogService;
     }
 
@@ -83,15 +90,34 @@ public class HttpsProxyController : ControllerBase
 
         _db.HttpsProxyRules.Add(rule);
         await _db.SaveChangesAsync();
+
+        ProxyResponse? createdFrpChannel = null;
+        if (request.CreateFrpChannel)
+        {
+            createdFrpChannel = await _proxyService.CreateProxyAsync(new CreateProxyRequest(
+                request.FrpChannelName!.Trim(),
+                "tcp",
+                "127.0.0.1",
+                rule.ListenPort,
+                rule.ListenPort,
+                rule.Name));
+        }
+
         var startError = await TryRestartAsync(rule);
         if (startError != null)
         {
+            if (createdFrpChannel != null)
+                await _proxyService.DeleteProxyAsync(createdFrpChannel.Id);
+
             _db.HttpsProxyRules.Remove(rule);
             await _db.SaveChangesAsync();
             return startError;
         }
 
         await _auditLogService.LogAsync(HttpContext, "https-proxy.create", rule.Name, $"{rule.ListenPort}->{rule.TargetUrl}");
+        if (createdFrpChannel != null)
+            await _auditLogService.LogAsync(HttpContext, "proxy.create", createdFrpChannel.Name, $"tcp:127.0.0.1:{rule.ListenPort}->{rule.ListenPort}");
+
         return Ok(ToResponse(rule));
     }
 
@@ -221,6 +247,24 @@ public class HttpsProxyController : ControllerBase
         var exists = await _db.HttpsProxyRules.AnyAsync(r => r.ListenPort == request.ListenPort && (!currentId.HasValue || r.Id != currentId));
         if (exists)
             return BadRequest(new { message = "监听端口已被其他规则使用" });
+
+        if (!currentId.HasValue && request.CreateFrpChannel)
+        {
+            if (string.IsNullOrWhiteSpace(request.FrpChannelName))
+                return BadRequest(new { message = "请输入 frp 通道名称" });
+
+            var channelName = request.FrpChannelName.Trim();
+            if (channelName.Length > 64)
+                return BadRequest(new { message = "frp 通道名称不能超过 64 个字符" });
+
+            if (!Regex.IsMatch(channelName, "^[a-zA-Z0-9_-]+$"))
+                return BadRequest(new { message = "frp 通道名称只能包含字母、数字、下划线和连字符" });
+
+            var channelExists = await _db.Proxies.AnyAsync(p =>
+                p.Type == "tcp" && p.Name.ToLower() == channelName.ToLower());
+            if (channelExists)
+                return BadRequest(new { message = "frp 通道名称已存在" });
+        }
 
         return null;
     }
