@@ -257,13 +257,9 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
 {
     if (databaseProvider == "mysql")
     {
-        // Add ExpiresAt column for upgrades from older versions.
-        try { db.Database.ExecuteSqlRaw("ALTER TABLE `Proxies` ADD COLUMN `ExpiresAt` datetime(6) NULL"); }
-        catch { /* Column already exists */ }
-        try { db.Database.ExecuteSqlRaw("ALTER TABLE `Users` ADD COLUMN `FailedLoginCount` int NOT NULL DEFAULT 0"); }
-        catch { /* Column already exists */ }
-        try { db.Database.ExecuteSqlRaw("ALTER TABLE `Users` ADD COLUMN `LockedUntil` datetime(6) NULL"); }
-        catch { /* Column already exists */ }
+        AddMySqlColumnIfMissing(db, "Proxies", "ExpiresAt", "ALTER TABLE `Proxies` ADD COLUMN `ExpiresAt` datetime(6) NULL");
+        AddMySqlColumnIfMissing(db, "Users", "FailedLoginCount", "ALTER TABLE `Users` ADD COLUMN `FailedLoginCount` int NOT NULL DEFAULT 0");
+        AddMySqlColumnIfMissing(db, "Users", "LockedUntil", "ALTER TABLE `Users` ADD COLUMN `LockedUntil` datetime(6) NULL");
 
         db.Database.ExecuteSqlRaw("""
             CREATE TABLE IF NOT EXISTS `AuditLogs` (
@@ -278,18 +274,14 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
                 CONSTRAINT `PK_AuditLogs` PRIMARY KEY (`Id`)
             );
             """);
-        try { db.Database.ExecuteSqlRaw("""CREATE INDEX `IX_AuditLogs_CreatedAt` ON `AuditLogs` (`CreatedAt`);"""); }
-        catch { /* Index already exists */ }
+        if (!MySqlIndexExists(db, "AuditLogs", "IX_AuditLogs_CreatedAt"))
+            db.Database.ExecuteSqlRaw("""CREATE INDEX `IX_AuditLogs_CreatedAt` ON `AuditLogs` (`CreatedAt`);""");
         return;
     }
 
-    // Add ExpiresAt column for upgrades from older versions.
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Proxies ADD COLUMN ExpiresAt TEXT NULL"); }
-    catch { /* Column already exists */ }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Users ADD COLUMN FailedLoginCount INTEGER NOT NULL DEFAULT 0"); }
-    catch { /* Column already exists */ }
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE Users ADD COLUMN LockedUntil TEXT NULL"); }
-    catch { /* Column already exists */ }
+    AddSqliteColumnIfMissing(db, "Proxies", "ExpiresAt", "ALTER TABLE Proxies ADD COLUMN ExpiresAt TEXT NULL");
+    AddSqliteColumnIfMissing(db, "Users", "FailedLoginCount", "ALTER TABLE Users ADD COLUMN FailedLoginCount INTEGER NOT NULL DEFAULT 0");
+    AddSqliteColumnIfMissing(db, "Users", "LockedUntil", "ALTER TABLE Users ADD COLUMN LockedUntil TEXT NULL");
 
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS "AuditLogs" (
@@ -304,6 +296,49 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
         );
         """);
     db.Database.ExecuteSqlRaw("""CREATE INDEX IF NOT EXISTS "IX_AuditLogs_CreatedAt" ON "AuditLogs" ("CreatedAt");""");
+}
+
+static void AddSqliteColumnIfMissing(AppDbContext db, string tableName, string columnName, string alterSql)
+{
+    if (db.Database.SqlQuery<string>(
+            $"SELECT name AS Value FROM pragma_table_info({tableName}) WHERE name = {columnName}")
+        .Any())
+    {
+        return;
+    }
+
+    db.Database.ExecuteSqlRaw(alterSql);
+}
+
+static void AddMySqlColumnIfMissing(AppDbContext db, string tableName, string columnName, string alterSql)
+{
+    if (db.Database.SqlQuery<string>(
+            $"""
+            SELECT COLUMN_NAME AS Value
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = {tableName}
+              AND COLUMN_NAME = {columnName}
+            """)
+        .Any())
+    {
+        return;
+    }
+
+    db.Database.ExecuteSqlRaw(alterSql);
+}
+
+static bool MySqlIndexExists(AppDbContext db, string tableName, string indexName)
+{
+    return db.Database.SqlQuery<string>(
+            $"""
+            SELECT INDEX_NAME AS Value
+            FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = {tableName}
+              AND INDEX_NAME = {indexName}
+            """)
+        .Any();
 }
 
 static bool TryParseCidr(string value, out IPAddress prefix, out int prefixLength)
