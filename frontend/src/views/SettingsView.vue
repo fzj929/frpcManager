@@ -119,7 +119,7 @@
               @change="restoreFromFile"
             />
           </div>
-          <div class="form-hint">备份包含通道列表和 frpc 配置，不包含用户密码。</div>
+          <div class="form-hint">备份包含通道列表、HTTPS 代理规则和 frpc 配置，不包含用户密码、上传的证书文件、私钥和证书密码。</div>
         </el-card>
       </el-col>
 
@@ -165,6 +165,15 @@
           </template>
           <el-descriptions :column="1">
             <el-descriptions-item label="版本">v1.2.0</el-descriptions-item>
+            <el-descriptions-item label="项目地址">
+              <el-link
+                type="primary"
+                href="https://github.com/fzj929/frpcManager"
+                target="_blank"
+              >
+                fzj929/frpcManager
+              </el-link>
+            </el-descriptions-item>
             <el-descriptions-item label="后端">ASP.NET Core 8.0</el-descriptions-item>
             <el-descriptions-item label="前端">Vue 3 + Element Plus</el-descriptions-item>
             <el-descriptions-item label="数据库">SQLite</el-descriptions-item>
@@ -293,7 +302,7 @@ async function restoreFromFile(event: Event) {
   if (!file) return
 
   try {
-    await ElMessageBox.confirm('恢复配置会覆盖现有通道，并可能写入 frpc 配置。确定继续吗？', '恢复确认', {
+    await ElMessageBox.confirm('恢复配置会覆盖现有通道和 HTTPS 代理规则，并可能写入 frpc 配置。确定继续吗？', '恢复确认', {
       type: 'warning',
       confirmButtonText: '恢复',
       cancelButtonText: '取消'
@@ -304,6 +313,7 @@ async function restoreFromFile(event: Event) {
     const backup = JSON.parse(text)
     await restoreBackup({
       proxies: backup.proxies ?? [],
+      httpsProxies: backup.httpsProxies ?? [],
       frpcConfig: backup.frpcConfig ?? null,
       replaceExisting: true,
       applyFrpcConfig: true

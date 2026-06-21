@@ -6,6 +6,7 @@ public record BackupResponse(
     string Version,
     DateTime ExportedAt,
     List<BackupProxyItem> Proxies,
+    List<BackupHttpsProxyItem> HttpsProxies,
     FrpcConfig? FrpcConfig
 );
 
@@ -20,8 +21,18 @@ public record BackupProxyItem(
     DateTime? ExpiresAt
 );
 
+public record BackupHttpsProxyItem(
+    string Name,
+    int ListenPort,
+    string TargetUrl,
+    string CertificateMode,
+    string Description,
+    bool IsEnabled
+);
+
 public record RestoreRequest(
-    List<BackupProxyItem> Proxies,
+    List<BackupProxyItem>? Proxies,
+    List<BackupHttpsProxyItem>? HttpsProxies,
     FrpcConfig? FrpcConfig,
     bool ReplaceExisting = true,
     bool ApplyFrpcConfig = true

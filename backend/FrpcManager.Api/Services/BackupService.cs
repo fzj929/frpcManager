@@ -9,11 +9,13 @@ public class BackupService
 {
     private readonly AppDbContext _db;
     private readonly FrpcApiService _frpcApi;
+    private readonly HttpsProxyRuntimeService _httpsProxyRuntime;
 
-    public BackupService(AppDbContext db, FrpcApiService frpcApi)
+    public BackupService(AppDbContext db, FrpcApiService frpcApi, HttpsProxyRuntimeService httpsProxyRuntime)
     {
         _db = db;
         _frpcApi = frpcApi;
+        _httpsProxyRuntime = httpsProxyRuntime;
     }
 
     public async Task<BackupResponse> ExportAsync()
@@ -33,8 +35,20 @@ public class BackupService
             ))
             .ToListAsync();
 
+        var httpsProxies = await _db.HttpsProxyRules
+            .OrderBy(r => r.Name)
+            .Select(r => new BackupHttpsProxyItem(
+                r.Name,
+                r.ListenPort,
+                r.TargetUrl,
+                r.CertificateMode,
+                r.Description,
+                r.IsEnabled
+            ))
+            .ToListAsync();
+
         var frpcConfig = await _frpcApi.GetConfigAsync();
-        return new BackupResponse("1", DateTime.UtcNow, proxies, frpcConfig);
+        return new BackupResponse("2", DateTime.UtcNow, proxies, httpsProxies, frpcConfig);
     }
 
     public async Task RestoreAsync(RestoreRequest request)
@@ -42,9 +56,14 @@ public class BackupService
         if (request.ReplaceExisting)
         {
             _db.Proxies.RemoveRange(_db.Proxies);
+            var existingHttpsRules = await _db.HttpsProxyRules.ToListAsync();
+            foreach (var rule in existingHttpsRules)
+                await _httpsProxyRuntime.StopAsync(rule.Id);
+
+            _db.HttpsProxyRules.RemoveRange(existingHttpsRules);
         }
 
-        foreach (var item in request.Proxies)
+        foreach (var item in request.Proxies ?? [])
         {
             var proxy = request.ReplaceExisting
                 ? null
@@ -67,7 +86,40 @@ public class BackupService
             proxy.UpdatedAt = DateTime.UtcNow;
         }
 
+        var restoredHttpsRules = new List<HttpsProxyRule>();
+        foreach (var item in request.HttpsProxies ?? [])
+        {
+            var rule = request.ReplaceExisting
+                ? null
+                : await _db.HttpsProxyRules.FirstOrDefaultAsync(r => r.ListenPort == item.ListenPort);
+
+            if (rule != null)
+                await _httpsProxyRuntime.StopAsync(rule.Id);
+
+            if (rule == null)
+            {
+                rule = new HttpsProxyRule { CreatedAt = DateTime.UtcNow };
+                _db.HttpsProxyRules.Add(rule);
+            }
+
+            var usedUploadedCertificate = item.CertificateMode is "pfx" or "pem" or "uploaded";
+            rule.Name = item.Name;
+            rule.ListenPort = item.ListenPort;
+            rule.TargetUrl = item.TargetUrl;
+            rule.CertificateMode = "default";
+            rule.CertificatePath = "";
+            rule.CertificateKeyPath = "";
+            rule.CertificatePassword = "";
+            rule.Description = item.Description;
+            rule.IsEnabled = item.IsEnabled && !usedUploadedCertificate;
+            rule.UpdatedAt = DateTime.UtcNow;
+            restoredHttpsRules.Add(rule);
+        }
+
         await _db.SaveChangesAsync();
+
+        foreach (var rule in restoredHttpsRules.Where(r => r.IsEnabled))
+            await _httpsProxyRuntime.RestartAsync(rule);
 
         if (request.ApplyFrpcConfig && request.FrpcConfig != null)
         {
