@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+export DOCKER_BUILDKIT=1
 
 echo "==================================="
 echo "  FrpcManager Docker build and push"

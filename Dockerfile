@@ -1,9 +1,12 @@
+# syntax=docker/dockerfile:1.7
+
 FROM node:20-alpine AS frontend-build
 WORKDIR /src
 
 COPY frontend/package*.json ./frontend/
 WORKDIR /src/frontend
-RUN npm ci
+RUN --mount=type=cache,id=frpcmanager-npm,target=/root/.npm \
+    npm ci --prefer-offline
 
 WORKDIR /src
 COPY frontend ./frontend
@@ -14,11 +17,13 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS backend-build
 WORKDIR /src
 
 COPY backend/FrpcManager.Api/*.csproj ./backend/FrpcManager.Api/
-RUN dotnet restore ./backend/FrpcManager.Api/FrpcManager.Api.csproj
+RUN --mount=type=cache,id=frpcmanager-nuget,target=/root/.nuget/packages \
+    dotnet restore ./backend/FrpcManager.Api/FrpcManager.Api.csproj
 
 COPY backend ./backend
 COPY --from=frontend-build /src/frontend/dist ./backend/FrpcManager.Api/wwwroot
-RUN dotnet publish ./backend/FrpcManager.Api/FrpcManager.Api.csproj -c Release -o /app/publish --no-restore
+RUN --mount=type=cache,id=frpcmanager-nuget,target=/root/.nuget/packages \
+    dotnet publish ./backend/FrpcManager.Api/FrpcManager.Api.csproj -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app

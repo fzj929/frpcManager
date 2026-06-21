@@ -2,6 +2,7 @@
 setlocal
 
 set "ROOT=%~dp0"
+set "DOCKER_BUILDKIT=1"
 
 echo ===================================
 echo   FrpcManager Docker build and push
