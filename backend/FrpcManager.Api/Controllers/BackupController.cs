@@ -23,7 +23,7 @@ public class BackupController : ControllerBase
     public async Task<IActionResult> Export()
     {
         var backup = await _backupService.ExportAsync();
-        await _auditLogService.LogAsync(HttpContext, "backup.export", "configuration", $"proxies={backup.Proxies.Count},httpsProxies={backup.HttpsProxies.Count},wakeMacAddresses={backup.WakeMacAddresses.Count}");
+        await _auditLogService.LogAsync(HttpContext, "backup.export", "configuration", $"proxies={backup.Proxies.Count},httpsProxies={backup.HttpsProxies.Count},wakeMacAddresses={backup.WakeMacAddresses.Count},wakeSchedules={backup.WakeSchedules.Count}");
         return Ok(backup);
     }
 
@@ -31,7 +31,7 @@ public class BackupController : ControllerBase
     public async Task<IActionResult> Restore([FromBody] RestoreRequest request)
     {
         await _backupService.RestoreAsync(request);
-        await _auditLogService.LogAsync(HttpContext, "backup.restore", "configuration", $"proxies={request.Proxies?.Count ?? 0},httpsProxies={request.HttpsProxies?.Count ?? 0},wakeMacAddresses={request.WakeMacAddresses?.Count ?? 0}");
+        await _auditLogService.LogAsync(HttpContext, "backup.restore", "configuration", $"proxies={request.Proxies?.Count ?? 0},httpsProxies={request.HttpsProxies?.Count ?? 0},wakeMacAddresses={request.WakeMacAddresses?.Count ?? 0},wakeSchedules={request.WakeSchedules?.Count ?? 0}");
         return Ok(new { message = "配置已恢复" });
     }
 }

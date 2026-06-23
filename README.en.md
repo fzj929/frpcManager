@@ -18,7 +18,7 @@ FrpC Manager is a web management platform for frpc tunnels, built with **Vue 3 +
 - **First-run setup wizard**: create the first administrator account from the web UI
 - **Audit logs**: record login, tunnel, config, backup, restore, and Wake-on-LAN actions
 - **Health checks**: check database and frpc Web API connectivity
-- **Backup / restore**: export tunnels, HTTPS proxy rules, MAC address records, and frpc config; restore uses merge import and does not delete existing configuration
+- **Backup / restore**: export tunnels, HTTPS proxy rules, MAC address records, scheduled wake tasks, and frpc config; restore uses merge import and does not delete existing configuration
 - **Wake-on-LAN**: send a magic packet to wake a LAN computer by MAC address
 - **Wake-on-LAN address book**: save and name MAC addresses, and show host names in wake records and schedules
 - **Wake records / scheduled wake**: keep Wake-on-LAN history, wake again from history, and schedule daily, selected-weekday, or one-time date wake tasks
@@ -235,9 +235,9 @@ docker run -d \
 
 The Settings page can export and restore configuration:
 
-- Export: download a JSON backup containing tunnels, HTTPS proxy rules, MAC address records, and frpc config
+- Export: download a JSON backup containing tunnels, HTTPS proxy rules, MAC address records, scheduled wake tasks, and frpc config
 - Restore: upload a backup JSON and merge it into existing configuration without deleting items that are not in the backup
-- Merge keys: tunnels match by `name + type`, HTTPS proxy rules match by listen port, and MAC address records match by MAC address
+- Merge keys: tunnels match by `name + type`, HTTPS proxy rules match by listen port, MAC address records match by MAC address, and scheduled wake tasks match by `task name + MAC address`
 - frpc config from the backup is not applied by default, which avoids overwriting the current runtime config
 
 Restore actions are recorded in audit logs. Export a backup before large configuration changes.

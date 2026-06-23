@@ -56,8 +56,25 @@ public class BackupService
             ))
             .ToListAsync();
 
+        var wakeSchedules = await _db.WakeSchedules
+            .OrderBy(s => s.Name)
+            .ThenBy(s => s.MacAddress)
+            .Select(s => new BackupWakeScheduleItem(
+                s.Name,
+                s.MacAddress,
+                s.BroadcastAddress,
+                s.Port,
+                s.TimeOfDay,
+                s.ScheduleMode,
+                s.DaysOfWeek,
+                s.SpecificDate,
+                s.IsEnabled,
+                s.LastRunAt
+            ))
+            .ToListAsync();
+
         var frpcConfig = await _frpcApi.GetConfigAsync();
-        return new BackupResponse("3", DateTime.UtcNow, proxies, httpsProxies, wakeMacAddresses, frpcConfig);
+        return new BackupResponse("4", DateTime.UtcNow, proxies, httpsProxies, wakeMacAddresses, wakeSchedules, frpcConfig);
     }
 
     public async Task RestoreAsync(RestoreRequest request)
@@ -75,6 +92,31 @@ public class BackupService
 
             existing.MacAddress = macAddress;
             existing.Name = string.IsNullOrWhiteSpace(item.Name) ? macAddress : item.Name.Trim();
+            existing.UpdatedAt = DateTime.UtcNow;
+        }
+
+        foreach (var item in request.WakeSchedules ?? [])
+        {
+            var macAddress = WakeOnLanService.NormalizeMacAddress(item.MacAddress);
+            var existing = await _db.WakeSchedules.FirstOrDefaultAsync(s =>
+                s.Name == item.Name && s.MacAddress == macAddress);
+
+            if (existing == null)
+            {
+                existing = new WakeSchedule { CreatedAt = DateTime.UtcNow };
+                _db.WakeSchedules.Add(existing);
+            }
+
+            existing.Name = item.Name;
+            existing.MacAddress = macAddress;
+            existing.BroadcastAddress = string.IsNullOrWhiteSpace(item.BroadcastAddress) ? "255.255.255.255" : item.BroadcastAddress.Trim();
+            existing.Port = item.Port == 0 ? 9 : item.Port;
+            existing.TimeOfDay = string.IsNullOrWhiteSpace(item.TimeOfDay) ? "08:00" : item.TimeOfDay.Trim();
+            existing.ScheduleMode = NormalizeScheduleMode(item.ScheduleMode);
+            existing.DaysOfWeek = NormalizeDaysOfWeek(item.DaysOfWeek);
+            existing.SpecificDate = item.SpecificDate?.Date;
+            existing.IsEnabled = item.IsEnabled;
+            existing.LastRunAt = item.LastRunAt;
             existing.UpdatedAt = DateTime.UtcNow;
         }
 
@@ -138,5 +180,31 @@ public class BackupService
             await _frpcApi.PutConfigAsync(request.FrpcConfig);
             await _frpcApi.ReloadAsync();
         }
+    }
+
+    private static string NormalizeScheduleMode(string? scheduleMode)
+    {
+        return scheduleMode switch
+        {
+            "weekly" => "weekly",
+            "date" => "date",
+            _ => "daily"
+        };
+    }
+
+    private static string NormalizeDaysOfWeek(string? daysOfWeek)
+    {
+        if (string.IsNullOrWhiteSpace(daysOfWeek))
+            return "";
+
+        var values = daysOfWeek
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(v => int.TryParse(v, out var day) ? day : -1)
+            .Where(day => day is >= 0 and <= 6)
+            .Distinct()
+            .OrderBy(day => day)
+            .Select(day => day.ToString());
+
+        return string.Join(",", values);
     }
 }

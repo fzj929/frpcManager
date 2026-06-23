@@ -74,6 +74,7 @@ These instructions are for AI coding tools working in this repository. Follow th
   - frp tunnels
   - HTTPS proxy rules
   - Wake-on-LAN MAC address book
+  - Wake-on-LAN scheduled wake tasks
   - frpc config
 - Backups must not include:
   - user passwords

@@ -8,6 +8,7 @@ public record BackupResponse(
     List<BackupProxyItem> Proxies,
     List<BackupHttpsProxyItem> HttpsProxies,
     List<BackupWakeMacAddressItem> WakeMacAddresses,
+    List<BackupWakeScheduleItem> WakeSchedules,
     FrpcConfig? FrpcConfig
 );
 
@@ -36,10 +37,24 @@ public record BackupWakeMacAddressItem(
     string Name
 );
 
+public record BackupWakeScheduleItem(
+    string Name,
+    string MacAddress,
+    string BroadcastAddress,
+    int Port,
+    string TimeOfDay,
+    string ScheduleMode,
+    string DaysOfWeek,
+    DateTime? SpecificDate,
+    bool IsEnabled,
+    DateTime? LastRunAt
+);
+
 public record RestoreRequest(
     List<BackupProxyItem>? Proxies,
     List<BackupHttpsProxyItem>? HttpsProxies,
     List<BackupWakeMacAddressItem>? WakeMacAddresses,
+    List<BackupWakeScheduleItem>? WakeSchedules,
     FrpcConfig? FrpcConfig,
     bool ReplaceExisting = false,
     bool ApplyFrpcConfig = false

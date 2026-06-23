@@ -119,7 +119,7 @@
               @change="restoreFromFile"
             />
           </div>
-          <div class="form-hint">备份包含通道列表、HTTPS 代理规则、MAC 地址簿和 frpc 配置，不包含用户密码、上传的证书文件、私钥和证书密码。导入时采用合并方式，不会删除现有配置。</div>
+          <div class="form-hint">备份包含通道列表、HTTPS 代理规则、MAC 地址簿、定时唤醒任务和 frpc 配置，不包含用户密码、上传的证书文件、私钥和证书密码。导入时采用合并方式，不会删除现有配置。</div>
         </el-card>
       </el-col>
 
@@ -302,7 +302,7 @@ async function restoreFromFile(event: Event) {
   if (!file) return
 
   try {
-    await ElMessageBox.confirm('恢复配置会合并导入备份内容：已有配置会保留，备份中不存在的配置不会删除；同名通道、同端口 HTTPS 代理和相同 MAC 地址会按备份内容更新。确定继续吗？', '恢复确认', {
+    await ElMessageBox.confirm('恢复配置会合并导入备份内容：已有配置会保留，备份中不存在的配置不会删除；同名通道、同端口 HTTPS 代理、相同 MAC 地址和相同定时唤醒任务会按备份内容更新。确定继续吗？', '恢复确认', {
       type: 'warning',
       confirmButtonText: '合并导入',
       cancelButtonText: '取消'
@@ -315,6 +315,7 @@ async function restoreFromFile(event: Event) {
       proxies: backup.proxies ?? [],
       httpsProxies: backup.httpsProxies ?? [],
       wakeMacAddresses: backup.wakeMacAddresses ?? [],
+      wakeSchedules: backup.wakeSchedules ?? [],
       frpcConfig: backup.frpcConfig ?? null,
       replaceExisting: false,
       applyFrpcConfig: false
