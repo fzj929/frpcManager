@@ -26,7 +26,7 @@ This file gives AI coding tools and maintainers a fast map of the FrpcManager co
 
 - `backend/FrpcManager.Api/Data/AppDbContext.cs`
   - EF Core DbContext.
-  - Main tables: `Users`, `Proxies`, `AuditLogs`, `WakeLogs`, `WakeSchedules`, `HttpsProxyRules`.
+  - Main tables: `Users`, `Proxies`, `AuditLogs`, `WakeLogs`, `WakeSchedules`, `WakeMacAddresses`, `HttpsProxyRules`.
 
 ## Backend Controllers
 
@@ -45,7 +45,7 @@ This file gives AI coding tools and maintainers a fast map of the FrpcManager co
   - Can optionally create a disabled frp TCP tunnel for a new HTTPS proxy.
 
 - `Controllers/WakeOnLanController.cs`
-  - Wake-on-LAN send, logs, schedules, wake again.
+  - Wake-on-LAN send, MAC address book, logs, schedules, wake again.
 
 - `Controllers/BackupController.cs`
   - Export/restore frp tunnels, HTTPS proxy rules, and frpc config.
@@ -103,7 +103,7 @@ This file gives AI coding tools and maintainers a fast map of the FrpcManager co
 - `Models/HttpsProxyRule.cs`: lightweight HTTPS reverse proxy rule.
 - `Models/User.cs`: admin user and login lockout fields.
 - `Models/AuditLog.cs`: operation log.
-- `Models/WakeLog.cs`, `Models/WakeSchedule.cs`: Wake-on-LAN records and schedules.
+- `Models/WakeLog.cs`, `Models/WakeSchedule.cs`, `Models/WakeMacAddress.cs`: Wake-on-LAN records, schedules, and MAC address book.
 - `Models/FrpcConfig.cs`: frpc config model.
 
 - `DTOs/ProxyDtos.cs`: frp tunnel API contracts.
@@ -131,6 +131,7 @@ This file gives AI coding tools and maintainers a fast map of the FrpcManager co
 - `frontend/src/components/TimedEnableDialog.vue`: timed tunnel enable dialog.
 - `frontend/src/views/HttpsProxiesView.vue`: HTTPS reverse proxy management.
 - `frontend/src/views/WakeOnLanView.vue`: Wake-on-LAN send and schedule entry.
+- `frontend/src/views/WakeMacAddressesView.vue`: MAC address management and naming.
 - `frontend/src/views/WakeRecordsView.vue`: wake logs and wake again.
 - `frontend/src/views/AuditLogsView.vue`: operation logs.
 - `frontend/src/views/SettingsView.vue`: frpc settings, health checks, backup/restore, account security, about.
@@ -188,4 +189,3 @@ docker build -t frpc-manager:local .
 - Frontend build can show Rolldown `INVALID_ANNOTATION` warnings from `node_modules/@vueuse/core`.
 - Frontend build can warn that some chunks are larger than 500 kB.
 - These warnings have been seen before and do not necessarily indicate a failed build.
-

@@ -18,6 +18,7 @@
 
       <el-table :data="schedules" v-loading="scheduleLoading" row-key="id" stripe>
         <el-table-column prop="name" label="任务名称" min-width="140" />
+        <el-table-column prop="macName" label="主机名称" min-width="140" show-overflow-tooltip />
         <el-table-column prop="macAddress" label="MAC 地址" min-width="150" />
         <el-table-column prop="broadcastAddress" label="广播地址" min-width="130" />
         <el-table-column prop="port" label="端口" width="80" />
@@ -60,6 +61,7 @@
             {{ new Date(row.createdAt).toLocaleString() }}
           </template>
         </el-table-column>
+        <el-table-column prop="macName" label="主机名称" min-width="140" show-overflow-tooltip />
         <el-table-column prop="macAddress" label="MAC 地址" min-width="150" />
         <el-table-column prop="broadcastAddress" label="广播地址" min-width="130" />
         <el-table-column prop="port" label="端口" width="80" />
@@ -96,7 +98,21 @@
           <el-input v-model.trim="scheduleForm.name" placeholder="例如：办公室电脑" />
         </el-form-item>
         <el-form-item label="MAC 地址" prop="macAddress">
-          <el-input v-model.trim="scheduleForm.macAddress" placeholder="00:11:22:33:44:55" />
+          <el-select
+            v-model.trim="scheduleForm.macAddress"
+            filterable
+            allow-create
+            default-first-option
+            placeholder="00:11:22:33:44:55"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="item in macAddresses"
+              :key="item.id"
+              :label="macOptionLabel(item)"
+              :value="item.macAddress"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="广播地址" prop="broadcastAddress">
           <el-input v-model.trim="scheduleForm.broadcastAddress" placeholder="255.255.255.255" />
@@ -127,16 +143,18 @@ import { Delete, Document, Edit, Plus, Refresh, SwitchButton, Timer } from '@ele
 import {
   createWakeSchedule,
   deleteWakeSchedule,
+  fetchWakeMacAddresses,
   fetchWakeLogs,
   fetchWakeSchedules,
   updateWakeSchedule,
   wakeFromLog,
   wakeFromSchedule
 } from '@/api'
-import type { WakeLog, WakeSchedule } from '@/types'
+import type { WakeLog, WakeMacAddress, WakeSchedule } from '@/types'
 
 const logs = ref<WakeLog[]>([])
 const schedules = ref<WakeSchedule[]>([])
+const macAddresses = ref<WakeMacAddress[]>([])
 const logLoading = ref(false)
 const scheduleLoading = ref(false)
 const savingSchedule = ref(false)
@@ -186,8 +204,13 @@ async function loadSchedules() {
   }
 }
 
+async function loadMacAddresses() {
+  const res = await fetchWakeMacAddresses()
+  macAddresses.value = res.data
+}
+
 async function loadAll() {
-  await Promise.all([loadLogs(), loadSchedules()])
+  await Promise.all([loadLogs(), loadSchedules(), loadMacAddresses()])
 }
 
 function openScheduleDialog(row?: WakeSchedule) {
@@ -216,7 +239,7 @@ async function saveSchedule() {
       ElMessage.success('定时任务已创建')
     }
     scheduleDialogVisible.value = false
-    await loadSchedules()
+    await Promise.all([loadSchedules(), loadMacAddresses()])
   } catch (err: unknown) {
     const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '保存失败'
     ElMessage.error(msg)
@@ -252,6 +275,12 @@ async function wakeSchedule(id: number) {
   } finally {
     wakingId.value = ''
   }
+}
+
+function macOptionLabel(item: WakeMacAddress) {
+  return item.name === item.macAddress
+    ? `${item.macAddress}（未命名）`
+    : `${item.name}（${item.macAddress}）`
 }
 
 onMounted(loadAll)

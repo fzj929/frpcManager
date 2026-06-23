@@ -317,6 +317,19 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
             db.Database.ExecuteSqlRaw("""CREATE INDEX `IX_WakeSchedules_IsEnabled` ON `WakeSchedules` (`IsEnabled`);""");
 
         db.Database.ExecuteSqlRaw("""
+            CREATE TABLE IF NOT EXISTS `WakeMacAddresses` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `MacAddress` varchar(17) NOT NULL,
+                `Name` varchar(100) NOT NULL,
+                `CreatedAt` datetime(6) NOT NULL,
+                `UpdatedAt` datetime(6) NULL,
+                CONSTRAINT `PK_WakeMacAddresses` PRIMARY KEY (`Id`)
+            );
+            """);
+        if (!MySqlIndexExists(db, "WakeMacAddresses", "IX_WakeMacAddresses_MacAddress"))
+            db.Database.ExecuteSqlRaw("""CREATE UNIQUE INDEX `IX_WakeMacAddresses_MacAddress` ON `WakeMacAddresses` (`MacAddress`);""");
+
+        db.Database.ExecuteSqlRaw("""
             CREATE TABLE IF NOT EXISTS `HttpsProxyRules` (
                 `Id` int NOT NULL AUTO_INCREMENT,
                 `Name` longtext NOT NULL,
@@ -390,6 +403,17 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
         );
         """);
     db.Database.ExecuteSqlRaw("""CREATE INDEX IF NOT EXISTS "IX_WakeSchedules_IsEnabled" ON "WakeSchedules" ("IsEnabled");""");
+
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "WakeMacAddresses" (
+            "Id" INTEGER NOT NULL CONSTRAINT "PK_WakeMacAddresses" PRIMARY KEY AUTOINCREMENT,
+            "MacAddress" TEXT NOT NULL,
+            "Name" TEXT NOT NULL,
+            "CreatedAt" TEXT NOT NULL,
+            "UpdatedAt" TEXT NULL
+        );
+        """);
+    db.Database.ExecuteSqlRaw("""CREATE UNIQUE INDEX IF NOT EXISTS "IX_WakeMacAddresses_MacAddress" ON "WakeMacAddresses" ("MacAddress");""");
 
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS "HttpsProxyRules" (

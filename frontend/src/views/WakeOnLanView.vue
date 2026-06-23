@@ -22,11 +22,23 @@
             @submit.prevent
           >
             <el-form-item label="MAC 地址" prop="macAddress">
-              <el-input
+              <el-select
                 v-model.trim="form.macAddress"
+                filterable
+                allow-create
+                default-first-option
                 placeholder="例如：00:11:22:33:44:55"
+                style="width: 100%"
                 clearable
-              />
+              >
+                <el-option
+                  v-for="item in macAddresses"
+                  :key="item.id"
+                  :label="macOptionLabel(item)"
+                  :value="item.macAddress"
+                />
+              </el-select>
+              <div class="form-hint">可以选择已保存的 MAC 地址，也可以直接输入新的 MAC 地址。</div>
             </el-form-item>
 
             <el-form-item label="广播地址" prop="broadcastAddress">
@@ -79,14 +91,15 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { InfoFilled, Monitor, SwitchButton } from '@element-plus/icons-vue'
-import { wakeOnLan } from '@/api'
-import type { WakeOnLanRequest } from '@/types'
+import { fetchWakeMacAddresses, wakeOnLan } from '@/api'
+import type { WakeMacAddress, WakeOnLanRequest } from '@/types'
 
 const formRef = ref<FormInstance>()
 const sending = ref(false)
+const macAddresses = ref<WakeMacAddress[]>([])
 
 const form = reactive<WakeOnLanRequest>({
   macAddress: '',
@@ -116,6 +129,7 @@ async function sendWakePacket() {
   try {
     const res = await wakeOnLan(form)
     ElMessage.success(res.data?.message ?? '魔术数据包已发送')
+    await loadMacAddresses()
   } catch (err: unknown) {
     const msg = (err as { response?: { data?: { message?: string } } })
       ?.response?.data?.message ?? '发送失败'
@@ -131,6 +145,19 @@ function resetForm() {
   form.port = 9
   formRef.value?.clearValidate()
 }
+
+async function loadMacAddresses() {
+  const res = await fetchWakeMacAddresses()
+  macAddresses.value = res.data
+}
+
+function macOptionLabel(item: WakeMacAddress) {
+  return item.name === item.macAddress
+    ? `${item.macAddress}（未命名）`
+    : `${item.name}（${item.macAddress}）`
+}
+
+onMounted(loadMacAddresses)
 </script>
 
 <style scoped>

@@ -33,6 +33,16 @@ public class WakeOnLanController : ControllerBase
         if (request == null || string.IsNullOrWhiteSpace(request.MacAddress))
             return BadRequest(new { message = "请输入 MAC 地址" });
 
+        string macAddress;
+        try
+        {
+            macAddress = WakeOnLanService.NormalizeMacAddress(request.MacAddress);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+
         var broadcastAddress = string.IsNullOrWhiteSpace(request.BroadcastAddress)
             ? DefaultBroadcastAddress
             : request.BroadcastAddress.Trim();
@@ -40,11 +50,12 @@ public class WakeOnLanController : ControllerBase
 
         try
         {
-            await _wakeOnLanService.SendMagicPacketAsync(request.MacAddress, broadcastAddress, port);
-            await AddWakeLogAsync(request.MacAddress, broadcastAddress, port, "manual", true, "魔术数据包已发送");
-            await _auditLogService.LogAsync(HttpContext, "wake-on-lan.send", request.MacAddress, $"{broadcastAddress}:{port}");
+            await EnsureMacAddressAsync(macAddress);
+            await _wakeOnLanService.SendMagicPacketAsync(macAddress, broadcastAddress, port);
+            await AddWakeLogAsync(macAddress, broadcastAddress, port, "manual", true, "魔术数据包已发送");
+            await _auditLogService.LogAsync(HttpContext, "wake-on-lan.send", macAddress, $"{broadcastAddress}:{port}");
             return Ok(new WakeOnLanResponse(
-                request.MacAddress,
+                macAddress,
                 broadcastAddress,
                 port,
                 "魔术数据包已发送"
@@ -52,14 +63,89 @@ public class WakeOnLanController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            await AddWakeLogAsync(request.MacAddress, broadcastAddress, port, "manual", false, ex.Message);
+            await AddWakeLogAsync(macAddress, broadcastAddress, port, "manual", false, ex.Message);
             return BadRequest(new { message = ex.Message });
         }
         catch (SocketException ex)
         {
-            await AddWakeLogAsync(request.MacAddress, broadcastAddress, port, "manual", false, ex.Message);
+            await AddWakeLogAsync(macAddress, broadcastAddress, port, "manual", false, ex.Message);
             return StatusCode(500, new { message = $"发送魔术数据包失败：{ex.Message}" });
         }
+    }
+
+    [HttpGet("mac-addresses")]
+    public async Task<IActionResult> MacAddresses()
+    {
+        var items = await _db.WakeMacAddresses
+            .OrderBy(m => m.Name)
+            .ThenBy(m => m.MacAddress)
+            .Select(m => new WakeMacAddressResponse(
+                m.Id,
+                m.MacAddress,
+                m.Name,
+                m.CreatedAt,
+                m.UpdatedAt))
+            .ToListAsync();
+
+        return Ok(items);
+    }
+
+    [HttpPost("mac-addresses")]
+    public async Task<IActionResult> CreateMacAddress([FromBody] WakeMacAddressRequest request)
+    {
+        var validation = ValidateMacAddressRequest(request, out var macAddress, out var name);
+        if (validation != null) return validation;
+
+        var exists = await _db.WakeMacAddresses.AnyAsync(m => m.MacAddress == macAddress);
+        if (exists)
+            return BadRequest(new { message = "MAC 地址已存在" });
+
+        var item = new WakeMacAddress
+        {
+            MacAddress = macAddress,
+            Name = name,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _db.WakeMacAddresses.Add(item);
+        await _db.SaveChangesAsync();
+        await _auditLogService.LogAsync(HttpContext, "wake-on-lan.mac.create", macAddress, name);
+        return Ok(ToMacAddressResponse(item));
+    }
+
+    [HttpPut("mac-addresses/{id:int}")]
+    public async Task<IActionResult> UpdateMacAddress(int id, [FromBody] WakeMacAddressRequest request)
+    {
+        var item = await _db.WakeMacAddresses.FindAsync(id);
+        if (item == null)
+            return NotFound(new { message = "MAC 地址不存在" });
+
+        var validation = ValidateMacAddressRequest(request, out var macAddress, out var name);
+        if (validation != null) return validation;
+
+        var exists = await _db.WakeMacAddresses.AnyAsync(m => m.Id != id && m.MacAddress == macAddress);
+        if (exists)
+            return BadRequest(new { message = "MAC 地址已存在" });
+
+        item.MacAddress = macAddress;
+        item.Name = name;
+        item.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        await _auditLogService.LogAsync(HttpContext, "wake-on-lan.mac.update", macAddress, name);
+        return Ok(ToMacAddressResponse(item));
+    }
+
+    [HttpDelete("mac-addresses/{id:int}")]
+    public async Task<IActionResult> DeleteMacAddress(int id)
+    {
+        var item = await _db.WakeMacAddresses.FindAsync(id);
+        if (item == null)
+            return NotFound(new { message = "MAC 地址不存在" });
+
+        _db.WakeMacAddresses.Remove(item);
+        await _db.SaveChangesAsync();
+        await _auditLogService.LogAsync(HttpContext, "wake-on-lan.mac.delete", item.MacAddress, item.Name);
+        return Ok(new { message = "MAC 地址已删除" });
     }
 
     [HttpGet("logs")]
@@ -69,20 +155,11 @@ public class WakeOnLanController : ControllerBase
         var logs = await _db.WakeLogs
             .OrderByDescending(l => l.CreatedAt)
             .Take(limit)
-            .Select(l => new WakeLogResponse(
-                l.Id,
-                l.MacAddress,
-                l.BroadcastAddress,
-                l.Port,
-                l.Source,
-                l.Username,
-                l.IpAddress,
-                l.Success,
-                l.Message,
-                l.CreatedAt))
             .ToListAsync();
+        var nameMap = await GetMacNameMapAsync(logs.Select(l => l.MacAddress));
+        var response = logs.Select(l => ToLogResponse(l, nameMap)).ToList();
 
-        return Ok(logs);
+        return Ok(response);
     }
 
     [HttpPost("logs/{id:int}/wake")]
@@ -100,32 +177,23 @@ public class WakeOnLanController : ControllerBase
     {
         var schedules = await _db.WakeSchedules
             .OrderByDescending(s => s.CreatedAt)
-            .Select(s => new WakeScheduleResponse(
-                s.Id,
-                s.Name,
-                s.MacAddress,
-                s.BroadcastAddress,
-                s.Port,
-                s.TimeOfDay,
-                s.IsEnabled,
-                s.LastRunAt,
-                s.CreatedAt,
-                s.UpdatedAt))
             .ToListAsync();
+        var nameMap = await GetMacNameMapAsync(schedules.Select(s => s.MacAddress));
+        var response = schedules.Select(s => ToScheduleResponse(s, nameMap)).ToList();
 
-        return Ok(schedules);
+        return Ok(response);
     }
 
     [HttpPost("schedules")]
     public async Task<IActionResult> CreateSchedule([FromBody] WakeScheduleRequest request)
     {
-        var validation = ValidateScheduleRequest(request, out var broadcastAddress, out var timeOfDay);
+        var validation = ValidateScheduleRequest(request, out var macAddress, out var broadcastAddress, out var timeOfDay);
         if (validation != null) return validation;
 
         var schedule = new WakeSchedule
         {
             Name = request.Name.Trim(),
-            MacAddress = request.MacAddress.Trim(),
+            MacAddress = macAddress,
             BroadcastAddress = broadcastAddress,
             Port = request.Port == 0 ? 9 : request.Port,
             TimeOfDay = timeOfDay,
@@ -134,9 +202,11 @@ public class WakeOnLanController : ControllerBase
         };
 
         _db.WakeSchedules.Add(schedule);
+        await EnsureMacAddressAsync(schedule.MacAddress);
         await _db.SaveChangesAsync();
         await _auditLogService.LogAsync(HttpContext, "wake-on-lan.schedule.create", schedule.MacAddress, schedule.Name);
-        return Ok(ToScheduleResponse(schedule));
+        var nameMap = await GetMacNameMapAsync([schedule.MacAddress]);
+        return Ok(ToScheduleResponse(schedule, nameMap));
     }
 
     [HttpPut("schedules/{id:int}")]
@@ -146,20 +216,22 @@ public class WakeOnLanController : ControllerBase
         if (schedule == null)
             return NotFound(new { message = "定时任务不存在" });
 
-        var validation = ValidateScheduleRequest(request, out var broadcastAddress, out var timeOfDay);
+        var validation = ValidateScheduleRequest(request, out var macAddress, out var broadcastAddress, out var timeOfDay);
         if (validation != null) return validation;
 
         schedule.Name = request.Name.Trim();
-        schedule.MacAddress = request.MacAddress.Trim();
+        schedule.MacAddress = macAddress;
         schedule.BroadcastAddress = broadcastAddress;
         schedule.Port = request.Port == 0 ? 9 : request.Port;
         schedule.TimeOfDay = timeOfDay;
         schedule.IsEnabled = request.IsEnabled;
         schedule.UpdatedAt = DateTime.UtcNow;
 
+        await EnsureMacAddressAsync(schedule.MacAddress);
         await _db.SaveChangesAsync();
         await _auditLogService.LogAsync(HttpContext, "wake-on-lan.schedule.update", schedule.MacAddress, schedule.Name);
-        return Ok(ToScheduleResponse(schedule));
+        var nameMap = await GetMacNameMapAsync([schedule.MacAddress]);
+        return Ok(ToScheduleResponse(schedule, nameMap));
     }
 
     [HttpDelete("schedules/{id:int}")]
@@ -187,9 +259,10 @@ public class WakeOnLanController : ControllerBase
 
     private async Task AddWakeLogAsync(string macAddress, string broadcastAddress, int port, string source, bool success, string message)
     {
+        await EnsureMacAddressAsync(macAddress);
         _db.WakeLogs.Add(new WakeLog
         {
-            MacAddress = macAddress.Trim(),
+            MacAddress = WakeOnLanService.NormalizeMacAddress(macAddress),
             BroadcastAddress = broadcastAddress,
             Port = port,
             Source = source,
@@ -203,8 +276,9 @@ public class WakeOnLanController : ControllerBase
         await _db.SaveChangesAsync();
     }
 
-    private BadRequestObjectResult? ValidateScheduleRequest(WakeScheduleRequest request, out string broadcastAddress, out string timeOfDay)
+    private BadRequestObjectResult? ValidateScheduleRequest(WakeScheduleRequest request, out string macAddress, out string broadcastAddress, out string timeOfDay)
     {
+        macAddress = "";
         broadcastAddress = string.IsNullOrWhiteSpace(request.BroadcastAddress)
             ? DefaultBroadcastAddress
             : request.BroadcastAddress.Trim();
@@ -216,6 +290,15 @@ public class WakeOnLanController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.MacAddress))
             return BadRequest(new { message = "请输入 MAC 地址" });
 
+        try
+        {
+            macAddress = WakeOnLanService.NormalizeMacAddress(request.MacAddress);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+
         if (request.Port is < 0 or > 65535)
             return BadRequest(new { message = "端口必须在 1-65535 之间" });
 
@@ -225,9 +308,67 @@ public class WakeOnLanController : ControllerBase
         return null;
     }
 
-    private static WakeLogResponse ToLogResponse(WakeLog log) => new(
+    private BadRequestObjectResult? ValidateMacAddressRequest(WakeMacAddressRequest request, out string macAddress, out string name)
+    {
+        macAddress = "";
+        name = "";
+
+        if (request == null || string.IsNullOrWhiteSpace(request.MacAddress))
+            return BadRequest(new { message = "请输入 MAC 地址" });
+
+        try
+        {
+            macAddress = WakeOnLanService.NormalizeMacAddress(request.MacAddress);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+
+        name = string.IsNullOrWhiteSpace(request.Name) ? macAddress : request.Name.Trim();
+        if (name.Length > 100)
+            return BadRequest(new { message = "名称不能超过 100 个字符" });
+
+        return null;
+    }
+
+    private async Task EnsureMacAddressAsync(string macAddress)
+    {
+        var normalized = WakeOnLanService.NormalizeMacAddress(macAddress);
+        if (_db.WakeMacAddresses.Local.Any(m => m.MacAddress == normalized))
+            return;
+
+        var exists = await _db.WakeMacAddresses.AnyAsync(m => m.MacAddress == normalized);
+        if (exists) return;
+
+        _db.WakeMacAddresses.Add(new WakeMacAddress
+        {
+            MacAddress = normalized,
+            Name = normalized,
+            CreatedAt = DateTime.UtcNow
+        });
+    }
+
+    private async Task<Dictionary<string, string>> GetMacNameMapAsync(IEnumerable<string> macAddresses)
+    {
+        var normalized = macAddresses
+            .Where(m => !string.IsNullOrWhiteSpace(m))
+            .Select(WakeOnLanService.NormalizeMacAddress)
+            .Distinct()
+            .ToList();
+
+        if (normalized.Count == 0)
+            return new Dictionary<string, string>();
+
+        return await _db.WakeMacAddresses
+            .Where(m => normalized.Contains(m.MacAddress))
+            .ToDictionaryAsync(m => m.MacAddress, m => m.Name);
+    }
+
+    private static WakeLogResponse ToLogResponse(WakeLog log, Dictionary<string, string> nameMap) => new(
         log.Id,
         log.MacAddress,
+        nameMap.GetValueOrDefault(log.MacAddress, log.MacAddress),
         log.BroadcastAddress,
         log.Port,
         log.Source,
@@ -237,10 +378,11 @@ public class WakeOnLanController : ControllerBase
         log.Message,
         log.CreatedAt);
 
-    private static WakeScheduleResponse ToScheduleResponse(WakeSchedule schedule) => new(
+    private static WakeScheduleResponse ToScheduleResponse(WakeSchedule schedule, Dictionary<string, string> nameMap) => new(
         schedule.Id,
         schedule.Name,
         schedule.MacAddress,
+        nameMap.GetValueOrDefault(schedule.MacAddress, schedule.MacAddress),
         schedule.BroadcastAddress,
         schedule.Port,
         schedule.TimeOfDay,
@@ -248,4 +390,11 @@ public class WakeOnLanController : ControllerBase
         schedule.LastRunAt,
         schedule.CreatedAt,
         schedule.UpdatedAt);
+
+    private static WakeMacAddressResponse ToMacAddressResponse(WakeMacAddress item) => new(
+        item.Id,
+        item.MacAddress,
+        item.Name,
+        item.CreatedAt,
+        item.UpdatedAt);
 }

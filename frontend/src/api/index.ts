@@ -61,6 +61,10 @@ export const reloadFrpc = () => api.post('/config/reload')
 
 // Wake-on-LAN
 export const wakeOnLan = (data: object) => api.post('/wake-on-lan', data)
+export const fetchWakeMacAddresses = () => api.get('/wake-on-lan/mac-addresses')
+export const createWakeMacAddress = (data: object) => api.post('/wake-on-lan/mac-addresses', data)
+export const updateWakeMacAddress = (id: number, data: object) => api.put(`/wake-on-lan/mac-addresses/${id}`, data)
+export const deleteWakeMacAddress = (id: number) => api.delete(`/wake-on-lan/mac-addresses/${id}`)
 export const fetchWakeLogs = (limit = 200) => api.get('/wake-on-lan/logs', { params: { limit } })
 export const wakeFromLog = (id: number) => api.post(`/wake-on-lan/logs/${id}/wake`)
 export const fetchWakeSchedules = () => api.get('/wake-on-lan/schedules')

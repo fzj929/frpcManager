@@ -16,6 +16,7 @@ public record WakeOnLanResponse(
 public record WakeLogResponse(
     int Id,
     string MacAddress,
+    string MacName,
     string BroadcastAddress,
     int Port,
     string Source,
@@ -39,11 +40,25 @@ public record WakeScheduleResponse(
     int Id,
     string Name,
     string MacAddress,
+    string MacName,
     string BroadcastAddress,
     int Port,
     string TimeOfDay,
     bool IsEnabled,
     DateTime? LastRunAt,
+    DateTime CreatedAt,
+    DateTime? UpdatedAt
+);
+
+public record WakeMacAddressRequest(
+    string MacAddress,
+    string? Name
+);
+
+public record WakeMacAddressResponse(
+    int Id,
+    string MacAddress,
+    string Name,
     DateTime CreatedAt,
     DateTime? UpdatedAt
 );

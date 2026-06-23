@@ -25,7 +25,7 @@ public class WakeOnLanService
         await udpClient.SendAsync(packet, packet.Length, new IPEndPoint(ipAddress, port));
     }
 
-    private static byte[] ParseMacAddress(string macAddress)
+    public static string NormalizeMacAddress(string macAddress)
     {
         var normalized = macAddress
             .Replace("-", string.Empty)
@@ -35,6 +35,14 @@ public class WakeOnLanService
 
         if (!HexMacRegex.IsMatch(normalized))
             throw new ArgumentException("MAC 地址格式不正确");
+
+        return string.Join(':', Enumerable.Range(0, 6)
+            .Select(i => normalized.Substring(i * 2, 2).ToUpperInvariant()));
+    }
+
+    private static byte[] ParseMacAddress(string macAddress)
+    {
+        var normalized = NormalizeMacAddress(macAddress).Replace(":", string.Empty);
 
         var bytes = new byte[6];
         for (var i = 0; i < bytes.Length; i++)

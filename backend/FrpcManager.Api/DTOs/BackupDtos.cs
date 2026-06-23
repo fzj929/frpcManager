@@ -7,6 +7,7 @@ public record BackupResponse(
     DateTime ExportedAt,
     List<BackupProxyItem> Proxies,
     List<BackupHttpsProxyItem> HttpsProxies,
+    List<BackupWakeMacAddressItem> WakeMacAddresses,
     FrpcConfig? FrpcConfig
 );
 
@@ -30,9 +31,15 @@ public record BackupHttpsProxyItem(
     bool IsEnabled
 );
 
+public record BackupWakeMacAddressItem(
+    string MacAddress,
+    string Name
+);
+
 public record RestoreRequest(
     List<BackupProxyItem>? Proxies,
     List<BackupHttpsProxyItem>? HttpsProxies,
+    List<BackupWakeMacAddressItem>? WakeMacAddresses,
     FrpcConfig? FrpcConfig,
     bool ReplaceExisting = true,
     bool ApplyFrpcConfig = true

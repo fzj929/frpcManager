@@ -119,7 +119,7 @@
               @change="restoreFromFile"
             />
           </div>
-          <div class="form-hint">备份包含通道列表、HTTPS 代理规则和 frpc 配置，不包含用户密码、上传的证书文件、私钥和证书密码。</div>
+          <div class="form-hint">备份包含通道列表、HTTPS 代理规则、MAC 地址簿和 frpc 配置，不包含用户密码、上传的证书文件、私钥和证书密码。</div>
         </el-card>
       </el-col>
 
@@ -302,7 +302,7 @@ async function restoreFromFile(event: Event) {
   if (!file) return
 
   try {
-    await ElMessageBox.confirm('恢复配置会覆盖现有通道和 HTTPS 代理规则，并可能写入 frpc 配置。确定继续吗？', '恢复确认', {
+    await ElMessageBox.confirm('恢复配置会覆盖现有通道、HTTPS 代理规则和 MAC 地址簿，并可能写入 frpc 配置。确定继续吗？', '恢复确认', {
       type: 'warning',
       confirmButtonText: '恢复',
       cancelButtonText: '取消'
@@ -314,6 +314,7 @@ async function restoreFromFile(event: Event) {
     await restoreBackup({
       proxies: backup.proxies ?? [],
       httpsProxies: backup.httpsProxies ?? [],
+      wakeMacAddresses: backup.wakeMacAddresses ?? [],
       frpcConfig: backup.frpcConfig ?? null,
       replaceExisting: true,
       applyFrpcConfig: true

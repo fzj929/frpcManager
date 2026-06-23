@@ -73,6 +73,7 @@ These instructions are for AI coding tools working in this repository. Follow th
 - Backups include:
   - frp tunnels
   - HTTPS proxy rules
+  - Wake-on-LAN MAC address book
   - frpc config
 - Backups must not include:
   - user passwords
@@ -104,6 +105,22 @@ These instructions are for AI coding tools working in this repository. Follow th
 - Do not add landing pages; this is an operational management app.
 - Keep UI text direct and practical.
 - Settings/About currently shows version and GitHub project link.
+
+## Wake-on-LAN Rules
+
+- Wake-on-LAN feature lives mainly in:
+  - `backend/FrpcManager.Api/Controllers/WakeOnLanController.cs`
+  - `backend/FrpcManager.Api/Services/WakeOnLanService.cs`
+  - `backend/FrpcManager.Api/Services/WakeScheduleService.cs`
+  - `backend/FrpcManager.Api/Models/WakeMacAddress.cs`
+  - `frontend/src/views/WakeOnLanView.vue`
+  - `frontend/src/views/WakeMacAddressesView.vue`
+  - `frontend/src/views/WakeRecordsView.vue`
+- Store MAC addresses in normalized `AA:BB:CC:DD:EE:FF` form.
+- Every newly used MAC address should be added to the address book automatically with default name equal to the MAC address.
+- A MAC address whose name equals its MAC address is considered unnamed in the UI.
+- Wake logs and schedules should display both MAC address and associated host name when available.
+- Wake menu items should stay grouped under the host wake submenu.
 
 ## Backend Rules
 
@@ -143,4 +160,3 @@ git diff --stat
 
 - Keep commit messages short and specific.
 - Push only when the user asks to upload/push/submit to GitHub.
-

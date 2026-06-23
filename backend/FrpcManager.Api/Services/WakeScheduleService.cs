@@ -61,9 +61,10 @@ public class WakeScheduleService : BackgroundService
 
             var success = true;
             var message = "定时唤醒包已发送";
+            var macAddress = WakeOnLanService.NormalizeMacAddress(schedule.MacAddress);
             try
             {
-                await wakeOnLan.SendMagicPacketAsync(schedule.MacAddress, schedule.BroadcastAddress, schedule.Port);
+                await wakeOnLan.SendMagicPacketAsync(macAddress, schedule.BroadcastAddress, schedule.Port);
             }
             catch (Exception ex)
             {
@@ -73,9 +74,21 @@ public class WakeScheduleService : BackgroundService
 
             schedule.LastRunAt = now;
             schedule.UpdatedAt = now;
+            schedule.MacAddress = macAddress;
+            if (!db.WakeMacAddresses.Local.Any(m => m.MacAddress == macAddress) &&
+                !await db.WakeMacAddresses.AnyAsync(m => m.MacAddress == macAddress, stoppingToken))
+            {
+                db.WakeMacAddresses.Add(new WakeMacAddress
+                {
+                    MacAddress = macAddress,
+                    Name = macAddress,
+                    CreatedAt = now
+                });
+            }
+
             db.WakeLogs.Add(new WakeLog
             {
-                MacAddress = schedule.MacAddress,
+                MacAddress = macAddress,
                 BroadcastAddress = schedule.BroadcastAddress,
                 Port = schedule.Port,
                 Source = "schedule",

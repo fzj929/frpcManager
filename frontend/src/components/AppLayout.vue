@@ -23,14 +23,24 @@
           <el-icon><Connection /></el-icon>
           <template #title>通道管理</template>
         </el-menu-item>
-        <el-menu-item index="/wake">
-          <el-icon><Monitor /></el-icon>
-          <template #title>唤醒主机</template>
-        </el-menu-item>
-        <el-menu-item index="/wake-records">
-          <el-icon><Timer /></el-icon>
-          <template #title>唤醒记录</template>
-        </el-menu-item>
+        <el-sub-menu index="/wake-menu">
+          <template #title>
+            <el-icon><Monitor /></el-icon>
+            <span>主机唤醒</span>
+          </template>
+          <el-menu-item index="/wake">
+            <el-icon><SwitchButton /></el-icon>
+            <template #title>唤醒主机</template>
+          </el-menu-item>
+          <el-menu-item index="/wake-mac-addresses">
+            <el-icon><Monitor /></el-icon>
+            <template #title>MAC地址管理</template>
+          </el-menu-item>
+          <el-menu-item index="/wake-records">
+            <el-icon><Timer /></el-icon>
+            <template #title>唤醒记录</template>
+          </el-menu-item>
+        </el-sub-menu>
         <el-menu-item index="/https-proxies">
           <el-icon><Lock /></el-icon>
           <template #title>HTTPS代理</template>
@@ -113,6 +123,7 @@ const pageTitles: Record<string, string> = {
   '/dashboard': '仪表板',
   '/proxies': '通道管理',
   '/wake': '唤醒主机',
+  '/wake-mac-addresses': 'MAC地址管理',
   '/wake-records': '唤醒记录',
   '/https-proxies': 'HTTPS代理',
   '/audit-logs': '操作日志',

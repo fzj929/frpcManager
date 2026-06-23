@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<WakeLog> WakeLogs => Set<WakeLog>();
     public DbSet<WakeSchedule> WakeSchedules => Set<WakeSchedule>();
+    public DbSet<WakeMacAddress> WakeMacAddresses => Set<WakeMacAddress>();
     public DbSet<HttpsProxyRule> HttpsProxyRules => Set<HttpsProxyRule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -43,6 +44,14 @@ public class AppDbContext : DbContext
         {
             e.HasKey(s => s.Id);
             e.HasIndex(s => s.IsEnabled);
+        });
+
+        modelBuilder.Entity<WakeMacAddress>(e =>
+        {
+            e.HasKey(m => m.Id);
+            e.Property(m => m.MacAddress).HasMaxLength(17);
+            e.Property(m => m.Name).HasMaxLength(100);
+            e.HasIndex(m => m.MacAddress).IsUnique();
         });
 
         modelBuilder.Entity<HttpsProxyRule>(e =>

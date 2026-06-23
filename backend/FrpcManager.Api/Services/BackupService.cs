@@ -47,8 +47,17 @@ public class BackupService
             ))
             .ToListAsync();
 
+        var wakeMacAddresses = await _db.WakeMacAddresses
+            .OrderBy(m => m.Name)
+            .ThenBy(m => m.MacAddress)
+            .Select(m => new BackupWakeMacAddressItem(
+                m.MacAddress,
+                m.Name
+            ))
+            .ToListAsync();
+
         var frpcConfig = await _frpcApi.GetConfigAsync();
-        return new BackupResponse("2", DateTime.UtcNow, proxies, httpsProxies, frpcConfig);
+        return new BackupResponse("3", DateTime.UtcNow, proxies, httpsProxies, wakeMacAddresses, frpcConfig);
     }
 
     public async Task RestoreAsync(RestoreRequest request)
@@ -56,11 +65,30 @@ public class BackupService
         if (request.ReplaceExisting)
         {
             _db.Proxies.RemoveRange(_db.Proxies);
+            _db.WakeMacAddresses.RemoveRange(_db.WakeMacAddresses);
             var existingHttpsRules = await _db.HttpsProxyRules.ToListAsync();
             foreach (var rule in existingHttpsRules)
                 await _httpsProxyRuntime.StopAsync(rule.Id);
 
             _db.HttpsProxyRules.RemoveRange(existingHttpsRules);
+        }
+
+        foreach (var item in request.WakeMacAddresses ?? [])
+        {
+            var macAddress = WakeOnLanService.NormalizeMacAddress(item.MacAddress);
+            var existing = request.ReplaceExisting
+                ? null
+                : await _db.WakeMacAddresses.FirstOrDefaultAsync(m => m.MacAddress == macAddress);
+
+            if (existing == null)
+            {
+                existing = new WakeMacAddress { CreatedAt = DateTime.UtcNow };
+                _db.WakeMacAddresses.Add(existing);
+            }
+
+            existing.MacAddress = macAddress;
+            existing.Name = string.IsNullOrWhiteSpace(item.Name) ? macAddress : item.Name.Trim();
+            existing.UpdatedAt = DateTime.UtcNow;
         }
 
         foreach (var item in request.Proxies ?? [])

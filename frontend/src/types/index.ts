@@ -55,6 +55,7 @@ export interface WakeOnLanResponse {
 export interface WakeLog {
   id: number
   macAddress: string
+  macName: string
   broadcastAddress: string
   port: number
   source: string
@@ -69,11 +70,20 @@ export interface WakeSchedule {
   id: number
   name: string
   macAddress: string
+  macName: string
   broadcastAddress: string
   port: number
   timeOfDay: string
   isEnabled: boolean
   lastRunAt: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export interface WakeMacAddress {
+  id: number
+  macAddress: string
+  name: string
   createdAt: string
   updatedAt: string | null
 }
