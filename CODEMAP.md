@@ -21,6 +21,7 @@ This file gives AI coding tools and maintainers a fast map of the FrpcManager co
 
 - `backend/FrpcManager.Api/Program.cs`
   - App startup, DI registration, authentication, rate limits, forwarded headers, CORS, database provider selection, database compatibility initialization, Kestrel ports/certificate.
+  - Database compatibility initialization is guarded by `DatabaseCompatibilityVersion` and the internal `__FrpcManagerSchema` table.
   - Default HTTP/HTTPS management ports are `6887` and `6888`.
   - SQLite is default; MySQL is optional via environment/config.
 

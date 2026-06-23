@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
+const int DatabaseCompatibilityVersion = 4;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCors(options =>
@@ -135,7 +137,11 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
 
-    InitializeDatabaseCompatibility(db, databaseProvider);
+    if (ShouldInitializeDatabaseCompatibility(db, databaseProvider, DatabaseCompatibilityVersion))
+    {
+        InitializeDatabaseCompatibility(db, databaseProvider);
+        SetDatabaseCompatibilityVersion(db, databaseProvider, DatabaseCompatibilityVersion);
+    }
 
     if (!db.Users.Any())
     {
@@ -446,6 +452,66 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
     AddSqliteColumnIfMissing(db, "HttpsProxyRules", "CertificateKeyPath", "ALTER TABLE HttpsProxyRules ADD COLUMN CertificateKeyPath TEXT NOT NULL DEFAULT ''");
     db.Database.ExecuteSqlRaw("""CREATE UNIQUE INDEX IF NOT EXISTS "IX_HttpsProxyRules_ListenPort" ON "HttpsProxyRules" ("ListenPort");""");
     db.Database.ExecuteSqlRaw("""CREATE INDEX IF NOT EXISTS "IX_HttpsProxyRules_IsEnabled" ON "HttpsProxyRules" ("IsEnabled");""");
+}
+
+static bool ShouldInitializeDatabaseCompatibility(AppDbContext db, string databaseProvider, int targetVersion)
+{
+    EnsureSchemaStateTable(db, databaseProvider);
+    var currentVersionText = GetSchemaStateValue(db, databaseProvider, "DatabaseCompatibilityVersion");
+    return !int.TryParse(currentVersionText, out var currentVersion) || currentVersion < targetVersion;
+}
+
+static void SetDatabaseCompatibilityVersion(AppDbContext db, string databaseProvider, int version)
+{
+    SetSchemaStateValue(db, databaseProvider, "DatabaseCompatibilityVersion", version.ToString());
+}
+
+static void EnsureSchemaStateTable(AppDbContext db, string databaseProvider)
+{
+    if (databaseProvider == "mysql")
+    {
+        db.Database.ExecuteSqlRaw("""
+            CREATE TABLE IF NOT EXISTS `__FrpcManagerSchema` (
+                `Key` varchar(100) NOT NULL,
+                `Value` varchar(100) NOT NULL,
+                CONSTRAINT `PK___FrpcManagerSchema` PRIMARY KEY (`Key`)
+            );
+            """);
+        return;
+    }
+
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "__FrpcManagerSchema" (
+            "Key" TEXT NOT NULL CONSTRAINT "PK___FrpcManagerSchema" PRIMARY KEY,
+            "Value" TEXT NOT NULL
+        );
+        """);
+}
+
+static string? GetSchemaStateValue(AppDbContext db, string databaseProvider, string key)
+{
+    return databaseProvider == "mysql"
+        ? db.Database.SqlQuery<string>($"SELECT `Value` AS Value FROM `__FrpcManagerSchema` WHERE `Key` = {key}").FirstOrDefault()
+        : db.Database.SqlQuery<string>($"SELECT \"Value\" AS Value FROM \"__FrpcManagerSchema\" WHERE \"Key\" = {key}").FirstOrDefault();
+}
+
+static void SetSchemaStateValue(AppDbContext db, string databaseProvider, string key, string value)
+{
+    if (databaseProvider == "mysql")
+    {
+        db.Database.ExecuteSql($"""
+            INSERT INTO `__FrpcManagerSchema` (`Key`, `Value`)
+            VALUES ({key}, {value})
+            ON DUPLICATE KEY UPDATE `Value` = VALUES(`Value`);
+            """);
+        return;
+    }
+
+    db.Database.ExecuteSql($"""
+        INSERT INTO "__FrpcManagerSchema" ("Key", "Value")
+        VALUES ({key}, {value})
+        ON CONFLICT("Key") DO UPDATE SET "Value" = excluded."Value";
+        """);
 }
 
 static void AddSqliteColumnIfMissing(AppDbContext db, string tableName, string columnName, string alterSql)

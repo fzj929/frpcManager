@@ -131,6 +131,7 @@ These instructions are for AI coding tools working in this repository. Follow th
 - Prefer putting business logic in services rather than controllers when it is shared or non-trivial.
 - Add audit logs for meaningful user actions.
 - If adding database fields/tables, update both SQLite and MySQL compatibility initialization in `Program.cs`.
+- If changing database compatibility initialization, increment `DatabaseCompatibilityVersion` in `Program.cs` so existing deployments run the required schema update once.
 - If adding user configuration, consider whether backup/restore should include it.
 - If adding hosted/background behavior, register it in `Program.cs` and consider startup/shutdown failure handling.
 

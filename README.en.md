@@ -18,10 +18,11 @@ FrpC Manager is a web management platform for frpc tunnels, built with **Vue 3 +
 - **First-run setup wizard**: create the first administrator account from the web UI
 - **Audit logs**: record login, tunnel, config, backup, restore, and Wake-on-LAN actions
 - **Health checks**: check database and frpc Web API connectivity
-- **Backup / restore**: export and restore tunnel and frpc configuration
+- **Backup / restore**: export tunnels, HTTPS proxy rules, MAC address records, and frpc config; restore uses merge import and does not delete existing configuration
 - **Wake-on-LAN**: send a magic packet to wake a LAN computer by MAC address
-- **Wake records / scheduled wake**: keep Wake-on-LAN history, wake again from history, and run daily scheduled wake tasks
-- **Lightweight HTTPS proxy**: listen on a local HTTPS port and forward requests to an internal HTTP service, with optional PFX certificate upload
+- **Wake-on-LAN address book**: save and name MAC addresses, and show host names in wake records and schedules
+- **Wake records / scheduled wake**: keep Wake-on-LAN history, wake again from history, and schedule daily, selected-weekday, or one-time date wake tasks
+- **Lightweight HTTPS proxy**: listen on a local HTTPS port and forward requests to an internal HTTP service, with default, IIS, or Nginx certificate support
 - **Docker Compose**: build and run the service with one command
 
 ---
@@ -180,11 +181,15 @@ The response includes database status, frpc Web API status, and the check time.
 
 ### Wake Records and Scheduled Wake
 
-The Wake Records page manages Wake-on-LAN history and scheduled tasks:
+The host wake menu includes Wake Host, MAC Address Management, and Wake Records:
 
+- MAC Address Management stores frequently used MAC addresses and lets users assign host names
+- New MAC addresses used by manual wake, scheduled wake, or wake-again actions are added automatically with the MAC address as the default name
 - Manual and scheduled wake actions record MAC address, broadcast address, port, source, result, and time
+- Wake records and schedules show the associated host name when available
 - Wake a host again from any history record
-- Create daily scheduled wake tasks at a fixed time
+- Create scheduled wake tasks for every day, selected weekdays, or one specific date
+- One-time specific-date tasks disable themselves after execution
 - Enable, disable, edit, delete, or run scheduled wake tasks immediately
 
 ### Lightweight HTTPS Proxy
@@ -228,12 +233,18 @@ docker run -d \
 
 ### Backup / Restore
 
-The Settings page can export and restore tunnel and frpc configuration:
+The Settings page can export and restore configuration:
 
-- Export: download a JSON backup containing tunnels and frpc config
-- Restore: upload a backup JSON and optionally apply frpc config
+- Export: download a JSON backup containing tunnels, HTTPS proxy rules, MAC address records, and frpc config
+- Restore: upload a backup JSON and merge it into existing configuration without deleting items that are not in the backup
+- Merge keys: tunnels match by `name + type`, HTTPS proxy rules match by listen port, and MAC address records match by MAC address
+- frpc config from the backup is not applied by default, which avoids overwriting the current runtime config
 
 Restore actions are recorded in audit logs. Export a backup before large configuration changes.
+
+### Database Initialization
+
+On startup, the application ensures the database exists and stores the database compatibility version in `__FrpcManagerSchema`. Existing databases do not run the full table/column compatibility initialization on every restart. Compatibility initialization runs only on first startup or when a future application version needs schema updates.
 
 ---
 
@@ -302,6 +313,10 @@ Most endpoints require a JWT token, except setup status, first-run setup, and he
 | `GET` | `/api/config/status` | Get live frpc tunnel status |
 | `POST` | `/api/config/reload` | Manually trigger frpc reload |
 | `POST` | `/api/wake-on-lan` | Send a Wake-on-LAN magic packet |
+| `GET` | `/api/wake-on-lan/mac-addresses` | List Wake-on-LAN MAC address records |
+| `POST` | `/api/wake-on-lan/mac-addresses` | Add a MAC address record |
+| `PUT` | `/api/wake-on-lan/mac-addresses/{id}` | Update a MAC address record |
+| `DELETE` | `/api/wake-on-lan/mac-addresses/{id}` | Delete a MAC address record |
 | `GET` | `/api/wake-on-lan/logs` | List Wake-on-LAN records |
 | `POST` | `/api/wake-on-lan/logs/{id}/wake` | Wake again from a history record |
 | `GET` | `/api/wake-on-lan/schedules` | List scheduled wake tasks |
