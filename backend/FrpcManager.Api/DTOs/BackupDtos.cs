@@ -41,6 +41,6 @@ public record RestoreRequest(
     List<BackupHttpsProxyItem>? HttpsProxies,
     List<BackupWakeMacAddressItem>? WakeMacAddresses,
     FrpcConfig? FrpcConfig,
-    bool ReplaceExisting = true,
-    bool ApplyFrpcConfig = true
+    bool ReplaceExisting = false,
+    bool ApplyFrpcConfig = false
 );

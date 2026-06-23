@@ -62,23 +62,10 @@ public class BackupService
 
     public async Task RestoreAsync(RestoreRequest request)
     {
-        if (request.ReplaceExisting)
-        {
-            _db.Proxies.RemoveRange(_db.Proxies);
-            _db.WakeMacAddresses.RemoveRange(_db.WakeMacAddresses);
-            var existingHttpsRules = await _db.HttpsProxyRules.ToListAsync();
-            foreach (var rule in existingHttpsRules)
-                await _httpsProxyRuntime.StopAsync(rule.Id);
-
-            _db.HttpsProxyRules.RemoveRange(existingHttpsRules);
-        }
-
         foreach (var item in request.WakeMacAddresses ?? [])
         {
             var macAddress = WakeOnLanService.NormalizeMacAddress(item.MacAddress);
-            var existing = request.ReplaceExisting
-                ? null
-                : await _db.WakeMacAddresses.FirstOrDefaultAsync(m => m.MacAddress == macAddress);
+            var existing = await _db.WakeMacAddresses.FirstOrDefaultAsync(m => m.MacAddress == macAddress);
 
             if (existing == null)
             {
@@ -93,9 +80,8 @@ public class BackupService
 
         foreach (var item in request.Proxies ?? [])
         {
-            var proxy = request.ReplaceExisting
-                ? null
-                : await _db.Proxies.FirstOrDefaultAsync(p => p.Name == item.Name && p.Type == item.Type);
+            var itemType = item.Type.ToLowerInvariant();
+            var proxy = await _db.Proxies.FirstOrDefaultAsync(p => p.Name == item.Name && p.Type == itemType);
 
             if (proxy == null)
             {
@@ -104,7 +90,7 @@ public class BackupService
             }
 
             proxy.Name = item.Name;
-            proxy.Type = item.Type.ToLowerInvariant();
+            proxy.Type = itemType;
             proxy.LocalIP = item.LocalIP;
             proxy.LocalPort = item.LocalPort;
             proxy.RemotePort = item.RemotePort;
@@ -117,9 +103,7 @@ public class BackupService
         var restoredHttpsRules = new List<HttpsProxyRule>();
         foreach (var item in request.HttpsProxies ?? [])
         {
-            var rule = request.ReplaceExisting
-                ? null
-                : await _db.HttpsProxyRules.FirstOrDefaultAsync(r => r.ListenPort == item.ListenPort);
+            var rule = await _db.HttpsProxyRules.FirstOrDefaultAsync(r => r.ListenPort == item.ListenPort);
 
             if (rule != null)
                 await _httpsProxyRuntime.StopAsync(rule.Id);
