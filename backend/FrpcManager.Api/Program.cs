@@ -263,6 +263,9 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
         AddMySqlColumnIfMissing(db, "Proxies", "ExpiresAt", "ALTER TABLE `Proxies` ADD COLUMN `ExpiresAt` datetime(6) NULL");
         AddMySqlColumnIfMissing(db, "Users", "FailedLoginCount", "ALTER TABLE `Users` ADD COLUMN `FailedLoginCount` int NOT NULL DEFAULT 0");
         AddMySqlColumnIfMissing(db, "Users", "LockedUntil", "ALTER TABLE `Users` ADD COLUMN `LockedUntil` datetime(6) NULL");
+        AddMySqlColumnIfMissing(db, "WakeSchedules", "ScheduleMode", "ALTER TABLE `WakeSchedules` ADD COLUMN `ScheduleMode` varchar(20) NOT NULL DEFAULT 'daily'");
+        AddMySqlColumnIfMissing(db, "WakeSchedules", "DaysOfWeek", "ALTER TABLE `WakeSchedules` ADD COLUMN `DaysOfWeek` varchar(32) NOT NULL DEFAULT ''");
+        AddMySqlColumnIfMissing(db, "WakeSchedules", "SpecificDate", "ALTER TABLE `WakeSchedules` ADD COLUMN `SpecificDate` datetime(6) NULL");
 
         db.Database.ExecuteSqlRaw("""
             CREATE TABLE IF NOT EXISTS `AuditLogs` (
@@ -306,6 +309,9 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
                 `BroadcastAddress` longtext NOT NULL,
                 `Port` int NOT NULL,
                 `TimeOfDay` longtext NOT NULL,
+                `ScheduleMode` varchar(20) NOT NULL DEFAULT 'daily',
+                `DaysOfWeek` varchar(32) NOT NULL DEFAULT '',
+                `SpecificDate` datetime(6) NULL,
                 `IsEnabled` tinyint(1) NOT NULL,
                 `LastRunAt` datetime(6) NULL,
                 `CreatedAt` datetime(6) NOT NULL,
@@ -357,6 +363,9 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
     AddSqliteColumnIfMissing(db, "Proxies", "ExpiresAt", "ALTER TABLE Proxies ADD COLUMN ExpiresAt TEXT NULL");
     AddSqliteColumnIfMissing(db, "Users", "FailedLoginCount", "ALTER TABLE Users ADD COLUMN FailedLoginCount INTEGER NOT NULL DEFAULT 0");
     AddSqliteColumnIfMissing(db, "Users", "LockedUntil", "ALTER TABLE Users ADD COLUMN LockedUntil TEXT NULL");
+    AddSqliteColumnIfMissing(db, "WakeSchedules", "ScheduleMode", "ALTER TABLE WakeSchedules ADD COLUMN ScheduleMode TEXT NOT NULL DEFAULT 'daily'");
+    AddSqliteColumnIfMissing(db, "WakeSchedules", "DaysOfWeek", "ALTER TABLE WakeSchedules ADD COLUMN DaysOfWeek TEXT NOT NULL DEFAULT ''");
+    AddSqliteColumnIfMissing(db, "WakeSchedules", "SpecificDate", "ALTER TABLE WakeSchedules ADD COLUMN SpecificDate TEXT NULL");
 
     db.Database.ExecuteSqlRaw("""
         CREATE TABLE IF NOT EXISTS "AuditLogs" (
@@ -396,6 +405,9 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
             "BroadcastAddress" TEXT NOT NULL,
             "Port" INTEGER NOT NULL,
             "TimeOfDay" TEXT NOT NULL,
+            "ScheduleMode" TEXT NOT NULL DEFAULT 'daily',
+            "DaysOfWeek" TEXT NOT NULL DEFAULT '',
+            "SpecificDate" TEXT NULL,
             "IsEnabled" INTEGER NOT NULL,
             "LastRunAt" TEXT NULL,
             "CreatedAt" TEXT NOT NULL,

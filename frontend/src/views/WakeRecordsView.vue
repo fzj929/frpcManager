@@ -23,6 +23,11 @@
         <el-table-column prop="broadcastAddress" label="广播地址" min-width="130" />
         <el-table-column prop="port" label="端口" width="80" />
         <el-table-column prop="timeOfDay" label="时间" width="100" />
+        <el-table-column label="执行规则" min-width="180">
+          <template #default="{ row }">
+            {{ formatScheduleRule(row) }}
+          </template>
+        </el-table-column>
         <el-table-column label="状态" width="90">
           <template #default="{ row }">
             <el-tag :type="row.isEnabled ? 'success' : 'info'">
@@ -123,6 +128,33 @@
         <el-form-item label="每天时间" prop="timeOfDay">
           <el-time-picker v-model="scheduleTime" format="HH:mm" value-format="HH:mm" placeholder="选择时间" style="width: 100%" />
         </el-form-item>
+        <el-form-item label="执行方式" prop="scheduleMode">
+          <el-radio-group v-model="scheduleForm.scheduleMode">
+            <el-radio-button label="daily">每天</el-radio-button>
+            <el-radio-button label="weekly">每周</el-radio-button>
+            <el-radio-button label="date">指定日期</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="scheduleForm.scheduleMode === 'weekly'" label="选择星期" prop="daysOfWeek">
+          <el-checkbox-group v-model="scheduleForm.daysOfWeek">
+            <el-checkbox-button
+              v-for="day in weekDays"
+              :key="day.value"
+              :label="day.value"
+            >
+              {{ day.label }}
+            </el-checkbox-button>
+          </el-checkbox-group>
+        </el-form-item>
+        <el-form-item v-if="scheduleForm.scheduleMode === 'date'" label="指定日期" prop="specificDate">
+          <el-date-picker
+            v-model="scheduleForm.specificDate"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="选择日期"
+            style="width: 100%"
+          />
+        </el-form-item>
         <el-form-item label="启用">
           <el-switch v-model="scheduleForm.isEnabled" />
         </el-form-item>
@@ -169,6 +201,9 @@ const scheduleForm = reactive({
   macAddress: '',
   broadcastAddress: '255.255.255.255',
   port: 9,
+  scheduleMode: 'daily',
+  daysOfWeek: [] as string[],
+  specificDate: '',
   isEnabled: true
 })
 
@@ -181,8 +216,43 @@ const scheduleRules: FormRules = {
     { pattern: macPattern, message: 'MAC 地址格式不正确', trigger: 'blur' }
   ],
   broadcastAddress: [{ required: true, message: '请输入广播地址', trigger: 'blur' }],
-  port: [{ required: true, type: 'number', message: '请输入端口', trigger: 'blur' }]
+  port: [{ required: true, type: 'number', message: '请输入端口', trigger: 'blur' }],
+  scheduleMode: [{ required: true, message: '请选择执行方式', trigger: 'change' }],
+  daysOfWeek: [
+    {
+      validator: (_rule, value, callback) => {
+        if (scheduleForm.scheduleMode === 'weekly' && (!Array.isArray(value) || value.length === 0)) {
+          callback(new Error('请选择每周执行的日期'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change'
+    }
+  ],
+  specificDate: [
+    {
+      validator: (_rule, value, callback) => {
+        if (scheduleForm.scheduleMode === 'date' && !value) {
+          callback(new Error('请选择指定日期'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change'
+    }
+  ]
 }
+
+const weekDays = [
+  { label: '周一', value: '1' },
+  { label: '周二', value: '2' },
+  { label: '周三', value: '3' },
+  { label: '周四', value: '4' },
+  { label: '周五', value: '5' },
+  { label: '周六', value: '6' },
+  { label: '周日', value: '0' }
+]
 
 async function loadLogs() {
   logLoading.value = true
@@ -219,6 +289,9 @@ function openScheduleDialog(row?: WakeSchedule) {
   scheduleForm.macAddress = row?.macAddress ?? ''
   scheduleForm.broadcastAddress = row?.broadcastAddress ?? '255.255.255.255'
   scheduleForm.port = row?.port ?? 9
+  scheduleForm.scheduleMode = row?.scheduleMode ?? 'daily'
+  scheduleForm.daysOfWeek = row?.daysOfWeek ? row.daysOfWeek.split(',').filter(Boolean) : []
+  scheduleForm.specificDate = row?.specificDate ? row.specificDate.slice(0, 10) : ''
   scheduleForm.isEnabled = row?.isEnabled ?? true
   scheduleTime.value = row?.timeOfDay ?? '08:00'
   scheduleDialogVisible.value = true
@@ -230,7 +303,12 @@ async function saveSchedule() {
 
   savingSchedule.value = true
   try {
-    const data = { ...scheduleForm, timeOfDay: scheduleTime.value }
+    const data = {
+      ...scheduleForm,
+      daysOfWeek: scheduleForm.scheduleMode === 'weekly' ? scheduleForm.daysOfWeek.join(',') : '',
+      specificDate: scheduleForm.scheduleMode === 'date' ? scheduleForm.specificDate : null,
+      timeOfDay: scheduleTime.value
+    }
     if (editingScheduleId.value) {
       await updateWakeSchedule(editingScheduleId.value, data)
       ElMessage.success('定时任务已更新')
@@ -281,6 +359,22 @@ function macOptionLabel(item: WakeMacAddress) {
   return item.name === item.macAddress
     ? `${item.macAddress}（未命名）`
     : `${item.name}（${item.macAddress}）`
+}
+
+function formatScheduleRule(row: WakeSchedule) {
+  if (row.scheduleMode === 'date') {
+    return row.specificDate ? `指定日期 ${row.specificDate.slice(0, 10)}` : '指定日期'
+  }
+
+  if (row.scheduleMode === 'weekly') {
+    const labels = row.daysOfWeek
+      .split(',')
+      .filter(Boolean)
+      .map(value => weekDays.find(day => day.value === value)?.label ?? value)
+    return labels.length > 0 ? labels.join('、') : '每周'
+  }
+
+  return '每天'
 }
 
 onMounted(loadAll)

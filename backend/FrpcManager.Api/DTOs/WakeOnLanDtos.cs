@@ -33,6 +33,9 @@ public record WakeScheduleRequest(
     string? BroadcastAddress,
     int Port,
     string TimeOfDay,
+    string? ScheduleMode,
+    string? DaysOfWeek,
+    DateTime? SpecificDate,
     bool IsEnabled
 );
 
@@ -44,6 +47,9 @@ public record WakeScheduleResponse(
     string BroadcastAddress,
     int Port,
     string TimeOfDay,
+    string ScheduleMode,
+    string DaysOfWeek,
+    DateTime? SpecificDate,
     bool IsEnabled,
     DateTime? LastRunAt,
     DateTime CreatedAt,

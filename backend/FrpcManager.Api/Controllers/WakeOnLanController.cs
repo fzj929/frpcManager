@@ -197,6 +197,9 @@ public class WakeOnLanController : ControllerBase
             BroadcastAddress = broadcastAddress,
             Port = request.Port == 0 ? 9 : request.Port,
             TimeOfDay = timeOfDay,
+            ScheduleMode = NormalizeScheduleMode(request.ScheduleMode),
+            DaysOfWeek = NormalizeDaysOfWeek(request.DaysOfWeek),
+            SpecificDate = NormalizeSpecificDate(request.SpecificDate),
             IsEnabled = request.IsEnabled,
             CreatedAt = DateTime.UtcNow
         };
@@ -224,6 +227,9 @@ public class WakeOnLanController : ControllerBase
         schedule.BroadcastAddress = broadcastAddress;
         schedule.Port = request.Port == 0 ? 9 : request.Port;
         schedule.TimeOfDay = timeOfDay;
+        schedule.ScheduleMode = NormalizeScheduleMode(request.ScheduleMode);
+        schedule.DaysOfWeek = NormalizeDaysOfWeek(request.DaysOfWeek);
+        schedule.SpecificDate = NormalizeSpecificDate(request.SpecificDate);
         schedule.IsEnabled = request.IsEnabled;
         schedule.UpdatedAt = DateTime.UtcNow;
 
@@ -304,6 +310,13 @@ public class WakeOnLanController : ControllerBase
 
         if (!TimeOnly.TryParse(timeOfDay, out _))
             return BadRequest(new { message = "时间格式不正确" });
+
+        var scheduleMode = NormalizeScheduleMode(request.ScheduleMode);
+        if (scheduleMode == "weekly" && string.IsNullOrWhiteSpace(NormalizeDaysOfWeek(request.DaysOfWeek)))
+            return BadRequest(new { message = "请选择每周执行的日期" });
+
+        if (scheduleMode == "date" && !request.SpecificDate.HasValue)
+            return BadRequest(new { message = "请选择指定日期" });
 
         return null;
     }
@@ -386,10 +399,44 @@ public class WakeOnLanController : ControllerBase
         schedule.BroadcastAddress,
         schedule.Port,
         schedule.TimeOfDay,
+        schedule.ScheduleMode,
+        schedule.DaysOfWeek,
+        schedule.SpecificDate,
         schedule.IsEnabled,
         schedule.LastRunAt,
         schedule.CreatedAt,
         schedule.UpdatedAt);
+
+    private static string NormalizeScheduleMode(string? scheduleMode)
+    {
+        return scheduleMode switch
+        {
+            "weekly" => "weekly",
+            "date" => "date",
+            _ => "daily"
+        };
+    }
+
+    private static string NormalizeDaysOfWeek(string? daysOfWeek)
+    {
+        if (string.IsNullOrWhiteSpace(daysOfWeek))
+            return "";
+
+        var values = daysOfWeek
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(v => int.TryParse(v, out var day) ? day : -1)
+            .Where(day => day is >= 0 and <= 6)
+            .Distinct()
+            .OrderBy(day => day)
+            .Select(day => day.ToString());
+
+        return string.Join(",", values);
+    }
+
+    private static DateTime? NormalizeSpecificDate(DateTime? specificDate)
+    {
+        return specificDate?.Date;
+    }
 
     private static WakeMacAddressResponse ToMacAddressResponse(WakeMacAddress item) => new(
         item.Id,

@@ -8,6 +8,9 @@ public class WakeSchedule
     public string BroadcastAddress { get; set; } = "";
     public int Port { get; set; } = 9;
     public string TimeOfDay { get; set; } = "08:00";
+    public string ScheduleMode { get; set; } = "daily";
+    public string DaysOfWeek { get; set; } = "";
+    public DateTime? SpecificDate { get; set; }
     public bool IsEnabled { get; set; } = true;
     public DateTime? LastRunAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

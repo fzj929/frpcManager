@@ -52,6 +52,9 @@ public class WakeScheduleService : BackgroundService
             if (!TimeOnly.TryParse(schedule.TimeOfDay, out var timeOnly))
                 continue;
 
+            if (!ShouldRunToday(schedule, today))
+                continue;
+
             var runAtToday = today.Add(timeOnly.ToTimeSpan());
             if (localNow < runAtToday || localNow >= runAtToday.AddSeconds(60))
                 continue;
@@ -75,6 +78,9 @@ public class WakeScheduleService : BackgroundService
             schedule.LastRunAt = now;
             schedule.UpdatedAt = now;
             schedule.MacAddress = macAddress;
+            if (schedule.ScheduleMode == "date")
+                schedule.IsEnabled = false;
+
             if (!db.WakeMacAddresses.Local.Any(m => m.MacAddress == macAddress) &&
                 !await db.WakeMacAddresses.AnyAsync(m => m.MacAddress == macAddress, stoppingToken))
             {
@@ -101,5 +107,26 @@ public class WakeScheduleService : BackgroundService
         }
 
         await db.SaveChangesAsync(stoppingToken);
+    }
+
+    private static bool ShouldRunToday(WakeSchedule schedule, DateTime today)
+    {
+        return schedule.ScheduleMode switch
+        {
+            "date" => schedule.SpecificDate?.Date == today,
+            "weekly" => IsWeeklyDaySelected(schedule.DaysOfWeek, today.DayOfWeek),
+            _ => true
+        };
+    }
+
+    private static bool IsWeeklyDaySelected(string daysOfWeek, DayOfWeek dayOfWeek)
+    {
+        if (string.IsNullOrWhiteSpace(daysOfWeek))
+            return false;
+
+        var today = ((int)dayOfWeek).ToString();
+        return daysOfWeek
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Contains(today);
     }
 }

@@ -74,6 +74,9 @@ export interface WakeSchedule {
   broadcastAddress: string
   port: number
   timeOfDay: string
+  scheduleMode: string
+  daysOfWeek: string
+  specificDate: string | null
   isEnabled: boolean
   lastRunAt: string | null
   createdAt: string

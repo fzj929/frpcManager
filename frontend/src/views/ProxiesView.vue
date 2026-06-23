@@ -106,12 +106,24 @@
         <!-- Actions -->
         <el-table-column label="操作" width="100" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button text type="primary" size="small" @click="openEditDialog(row)">
-              <el-icon><Edit /></el-icon>
-            </el-button>
-            <el-button text type="danger" size="small" @click="handleDelete(row)">
-              <el-icon><Delete /></el-icon>
-            </el-button>
+            <div class="row-actions">
+              <el-button
+                class="action-btn"
+                text
+                type="primary"
+                size="small"
+                :icon="Edit"
+                @click="openEditDialog(row)"
+              />
+              <el-button
+                class="action-btn"
+                text
+                type="danger"
+                size="small"
+                :icon="Delete"
+                @click="handleDelete(row)"
+              />
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -395,6 +407,24 @@ onUnmounted(() => {
 
 .addr-text { font-family: 'Courier New', monospace; font-size: 13px; }
 .muted { color: #aaa; }
+
+.row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.row-actions :deep(.el-button) {
+  margin-left: 0;
+}
+
+.action-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
 
 .table-footer {
   padding: 12px 0 0;

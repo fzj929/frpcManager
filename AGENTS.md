@@ -120,6 +120,10 @@ These instructions are for AI coding tools working in this repository. Follow th
 - Every newly used MAC address should be added to the address book automatically with default name equal to the MAC address.
 - A MAC address whose name equals its MAC address is considered unnamed in the UI.
 - Wake logs and schedules should display both MAC address and associated host name when available.
+- Wake schedules support three modes:
+  - `daily`: run every day.
+  - `weekly`: run only on selected weekdays, stored as comma-separated .NET `DayOfWeek` numbers where Sunday is `0`, Monday is `1`, and Saturday is `6`.
+  - `date`: run on one specific local date, then disable itself after execution.
 - Wake menu items should stay grouped under the host wake submenu.
 
 ## Backend Rules
