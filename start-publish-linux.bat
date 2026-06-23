@@ -41,6 +41,7 @@ cp -R "$FRONTEND_DIR/dist/." "$BACKEND_DIR/wwwroot/"
 echo
 echo "[4/5] Publish backend..."
 cd "$BACKEND_DIR"
+rm -rf "$PUBLISH_DIR"
 dotnet publish -c Release -o "$PUBLISH_DIR"
 
 echo

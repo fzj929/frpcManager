@@ -42,6 +42,7 @@ if errorlevel 1 goto fail
 echo.
 echo [4/5] Publish backend...
 cd /d "%BACKEND_DIR%"
+if exist "%PUBLISH_DIR%" rmdir /s /q "%PUBLISH_DIR%"
 dotnet publish -c Release -o "%PUBLISH_DIR%"
 if errorlevel 1 goto fail
 
