@@ -99,6 +99,20 @@ public class ProxiesController : ControllerBase
         return Ok(new { message = "通道已停用" });
     }
 
+    [HttpPut("{id:int}/owner")]
+    [Authorize(Roles = UserRoles.Admin)]
+    public async Task<IActionResult> AssignOwner(int id, [FromBody] AssignProxyOwnerRequest request)
+    {
+        var result = await _proxyService.AssignOwnerAsync(id, request.UserId, _userContext.UserId, _userContext.IsAdmin);
+        if (!result.Success)
+            return result.Message == "通道不存在"
+                ? NotFound(new { message = result.Message })
+                : BadRequest(new { message = result.Message });
+
+        await _auditLogService.LogAsync(HttpContext, "proxy.assign-owner", id.ToString(), $"userId={request.UserId?.ToString() ?? "none"}");
+        return Ok(result.Proxy);
+    }
+
     [HttpPost("sync")]
     [Authorize(Roles = UserRoles.Admin)]
     public async Task<IActionResult> SyncFromFrpc()

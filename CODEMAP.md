@@ -40,6 +40,7 @@ This file gives AI coding tools and maintainers a fast map of the FrpcManager co
 - `Controllers/ProxiesController.cs`
   - frp tunnel CRUD, enable/disable, timed enable, sync from frpc.
   - All users can view tunnels. Normal users can manage only tunnels they created; administrators can manage all tunnels.
+  - Administrators can assign or clear tunnel ownership.
 
 - `Controllers/ConfigController.cs`
   - frpc server configuration, status, reload.
@@ -56,6 +57,7 @@ This file gives AI coding tools and maintainers a fast map of the FrpcManager co
 - `Controllers/BackupController.cs`
   - Export/restore frp tunnels, HTTPS proxy rules, and frpc config.
   - Does not export uploaded certificate files, private keys, certificate passwords, or user passwords.
+  - Exports user metadata and tunnel owner usernames, but not password hashes.
   - Administrator-only.
 
 - `Controllers/AuditLogsController.cs`

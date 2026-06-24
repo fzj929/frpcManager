@@ -143,6 +143,35 @@ public class ProxyService
         return syncResult;
     }
 
+    public async Task<(bool Success, string Message, ProxyResponse? Proxy)> AssignOwnerAsync(
+        int id,
+        int? ownerUserId,
+        int? currentUserId,
+        bool isAdmin)
+    {
+        if (!isAdmin) return (false, "只有管理员可以分配通道归属", null);
+
+        var proxy = await _db.Proxies
+            .Include(p => p.CreatedByUser)
+            .FirstOrDefaultAsync(p => p.Id == id);
+        if (proxy == null) return (false, "通道不存在", null);
+
+        User? owner = null;
+        if (ownerUserId.HasValue)
+        {
+            owner = await _db.Users.FindAsync(ownerUserId.Value);
+            if (owner == null) return (false, "指定用户不存在", null);
+        }
+
+        proxy.CreatedByUserId = ownerUserId;
+        proxy.CreatedByUser = owner;
+        proxy.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        var statusMap = await BuildStatusMapAsync();
+        return (true, "通道归属已更新", ToResponse(proxy, statusMap, currentUserId, isAdmin));
+    }
+
     public async Task<(bool Success, string Message)> SyncToFrpcAsync()
     {
         var currentConfig = await _frpcApi.GetConfigAsync();

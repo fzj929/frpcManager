@@ -5,11 +5,18 @@ namespace FrpcManager.Api.DTOs;
 public record BackupResponse(
     string Version,
     DateTime ExportedAt,
+    List<BackupUserItem> Users,
     List<BackupProxyItem> Proxies,
     List<BackupHttpsProxyItem> HttpsProxies,
     List<BackupWakeMacAddressItem> WakeMacAddresses,
     List<BackupWakeScheduleItem> WakeSchedules,
     FrpcConfig? FrpcConfig
+);
+
+public record BackupUserItem(
+    string Username,
+    string Role,
+    bool IsDisabled
 );
 
 public record BackupProxyItem(
@@ -20,7 +27,8 @@ public record BackupProxyItem(
     int RemotePort,
     string Description,
     bool IsEnabled,
-    DateTime? ExpiresAt
+    DateTime? ExpiresAt,
+    string? CreatedByUsername
 );
 
 public record BackupHttpsProxyItem(
@@ -51,6 +59,7 @@ public record BackupWakeScheduleItem(
 );
 
 public record RestoreRequest(
+    List<BackupUserItem>? Users,
     List<BackupProxyItem>? Proxies,
     List<BackupHttpsProxyItem>? HttpsProxies,
     List<BackupWakeMacAddressItem>? WakeMacAddresses,

@@ -20,6 +20,8 @@ public record UpdateProxyRequest(
 
 public record EnableRequest(int? DurationMinutes);
 
+public record AssignProxyOwnerRequest(int? UserId);
+
 public record ProxyResponse(
     int Id,
     string Name,

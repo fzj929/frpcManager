@@ -315,6 +315,7 @@ async function restoreFromFile(event: Event) {
     const text = await file.text()
     const backup = JSON.parse(text)
     await restoreBackup({
+      users: backup.users ?? [],
       proxies: backup.proxies ?? [],
       httpsProxies: backup.httpsProxies ?? [],
       wakeMacAddresses: backup.wakeMacAddresses ?? [],

@@ -20,7 +20,17 @@ public class BackupService
 
     public async Task<BackupResponse> ExportAsync()
     {
+        var users = await _db.Users
+            .OrderBy(u => u.Username)
+            .Select(u => new BackupUserItem(
+                u.Username,
+                u.Role,
+                u.IsDisabled
+            ))
+            .ToListAsync();
+
         var proxies = await _db.Proxies
+            .Include(p => p.CreatedByUser)
             .OrderBy(p => p.Name)
             .ThenBy(p => p.Type)
             .Select(p => new BackupProxyItem(
@@ -31,7 +41,8 @@ public class BackupService
                 p.RemotePort,
                 p.Description,
                 p.IsEnabled,
-                p.ExpiresAt
+                p.ExpiresAt,
+                p.CreatedByUser == null ? null : p.CreatedByUser.Username
             ))
             .ToListAsync();
 
@@ -74,11 +85,47 @@ public class BackupService
             .ToListAsync();
 
         var frpcConfig = await _frpcApi.GetConfigAsync();
-        return new BackupResponse("4", DateTime.UtcNow, proxies, httpsProxies, wakeMacAddresses, wakeSchedules, frpcConfig);
+        return new BackupResponse("5", DateTime.UtcNow, users, proxies, httpsProxies, wakeMacAddresses, wakeSchedules, frpcConfig);
     }
 
     public async Task RestoreAsync(RestoreRequest request)
     {
+        foreach (var item in request.Users ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(item.Username))
+                continue;
+
+            var username = item.Username.Trim();
+            var role = NormalizeUserRole(item.Role);
+            var existing = await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
+
+            if (existing == null)
+            {
+                _db.Users.Add(new User
+                {
+                    Username = username,
+                    Role = role,
+                    IsDisabled = true,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword($"restored-{Guid.NewGuid():N}"),
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+                continue;
+            }
+
+            var wouldRemoveActiveAdmin = existing.Role == UserRoles.Admin &&
+                (!string.Equals(role, UserRoles.Admin, StringComparison.OrdinalIgnoreCase) || item.IsDisabled);
+            if (wouldRemoveActiveAdmin && await ActiveAdminCountAsync(excludingUserId: existing.Id) == 0)
+                continue;
+
+            existing.Role = role;
+            existing.IsDisabled = item.IsDisabled;
+            existing.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _db.SaveChangesAsync();
+        var usersByName = await _db.Users.ToDictionaryAsync(u => u.Username, StringComparer.OrdinalIgnoreCase);
+
         foreach (var item in request.WakeMacAddresses ?? [])
         {
             var macAddress = WakeOnLanService.NormalizeMacAddress(item.MacAddress);
@@ -139,6 +186,7 @@ public class BackupService
             proxy.Description = item.Description;
             proxy.IsEnabled = item.IsEnabled;
             proxy.ExpiresAt = item.ExpiresAt;
+            proxy.CreatedByUserId = ResolveUserId(usersByName, item.CreatedByUsername);
             proxy.UpdatedAt = DateTime.UtcNow;
         }
 
@@ -206,5 +254,28 @@ public class BackupService
             .Select(day => day.ToString());
 
         return string.Join(",", values);
+    }
+
+    private async Task<int> ActiveAdminCountAsync(int? excludingUserId = null)
+    {
+        return await _db.Users.CountAsync(u =>
+            u.Role == UserRoles.Admin &&
+            !u.IsDisabled &&
+            (!excludingUserId.HasValue || u.Id != excludingUserId.Value));
+    }
+
+    private static string NormalizeUserRole(string? role)
+    {
+        return string.Equals(role, UserRoles.Admin, StringComparison.OrdinalIgnoreCase)
+            ? UserRoles.Admin
+            : UserRoles.User;
+    }
+
+    private static int? ResolveUserId(Dictionary<string, User> usersByName, string? username)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+            return null;
+
+        return usersByName.TryGetValue(username.Trim(), out var user) ? user.Id : null;
     }
 }

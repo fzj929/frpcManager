@@ -56,6 +56,8 @@ export const fetchProxies = () => api.get('/proxies')
 export const createProxy = (data: object) => api.post('/proxies', data)
 export const updateProxy = (id: number, data: object) => api.put(`/proxies/${id}`, data)
 export const deleteProxy = (id: number) => api.delete(`/proxies/${id}`)
+export const assignProxyOwner = (id: number, userId: number | null) =>
+  api.put(`/proxies/${id}/owner`, { userId })
 export const enableProxy = (id: number, durationMinutes: number | null = null) =>
   api.put(`/proxies/${id}/enable`, { durationMinutes })
 export const disableProxy = (id: number) => api.put(`/proxies/${id}/disable`)

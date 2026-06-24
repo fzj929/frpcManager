@@ -86,7 +86,24 @@
 
         <el-table-column label="创建者" width="110">
           <template #default="{ row }">
-            <span class="muted">{{ row.createdByUsername || '历史配置' }}</span>
+            <el-select
+              v-if="auth.isAdmin"
+              :model-value="row.createdByUserId"
+              :loading="ownerSavingId === row.id"
+              size="small"
+              clearable
+              placeholder="未分配"
+              style="width: 120px"
+              @change="(value: number | undefined) => handleOwnerChange(row, value ?? null)"
+            >
+              <el-option
+                v-for="user in ownerUsers"
+                :key="user.id"
+                :label="`${user.username}${user.isDisabled ? '（禁用）' : ''}`"
+                :value="user.id"
+              />
+            </el-select>
+            <span v-else class="muted">{{ row.createdByUsername || '历史配置' }}</span>
           </template>
         </el-table-column>
 
@@ -164,8 +181,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, Refresh, Edit, Delete, Timer, Unlock } from '@element-plus/icons-vue'
-import { fetchProxies, enableProxy, disableProxy, deleteProxy, syncFromFrpc } from '@/api'
-import type { Proxy } from '@/types'
+import { assignProxyOwner, fetchProxies, enableProxy, disableProxy, deleteProxy, fetchUsers, syncFromFrpc } from '@/api'
+import type { Proxy, UserAccount } from '@/types'
 import { useAuthStore } from '@/stores/auth'
 import ProxyFormDialog from '@/components/ProxyFormDialog.vue'
 import TimedEnableDialog from '@/components/TimedEnableDialog.vue'
@@ -175,6 +192,8 @@ const auth = useAuthStore()
 const loading = ref(false)
 const syncing = ref(false)
 const togglingId = ref<number | null>(null)
+const ownerSavingId = ref<number | null>(null)
+const ownerUsers = ref<UserAccount[]>([])
 const searchText = ref('')
 const filterType = ref('')
 const filterStatus = ref('')
@@ -308,6 +327,33 @@ async function handleSync() {
   }
 }
 
+async function handleOwnerChange(row: Proxy, userId: number | null) {
+  ownerSavingId.value = row.id
+  try {
+    const res = await assignProxyOwner(row.id, userId)
+    Object.assign(row, res.data)
+    ElMessage.success('通道归属已更新')
+  } catch (err: unknown) {
+    const msg = (err as { response?: { data?: { message?: string } } })
+      ?.response?.data?.message ?? '更新通道归属失败'
+    ElMessage.error(msg)
+    await loadProxies()
+  } finally {
+    ownerSavingId.value = null
+  }
+}
+
+async function loadOwnerUsers() {
+  if (!auth.isAdmin) return
+
+  try {
+    const res = await fetchUsers()
+    ownerUsers.value = res.data
+  } catch {
+    ElMessage.error('加载用户列表失败')
+  }
+}
+
 function openAddDialog() {
   editingProxy.value = null
   dialogVisible.value = true
@@ -337,6 +383,7 @@ async function loadProxies() {
 
 onMounted(() => {
   loadProxies()
+  loadOwnerUsers()
   // Update countdown every second
   ticker = setInterval(() => { tick.value++ }, 1000)
   // Auto-refresh list every 30s to pick up server-side expiry

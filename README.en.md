@@ -183,6 +183,8 @@ The first account created during setup is an administrator. Administrators can o
 
 Existing tunnels and HTTPS proxy rules created before this feature do not have an owner. They are shown as legacy configuration and can be managed by administrators only.
 
+Administrators can assign a tunnel to a user from the tunnel list. After assignment, that user can edit, delete, enable, or disable the tunnel.
+
 After upgrading from an older version, sign out and sign in again so the browser stores a JWT token with role claims.
 
 ### Health Check
@@ -252,9 +254,11 @@ docker run -d \
 
 The Settings page can export and restore configuration:
 
-- Export: download a JSON backup containing tunnels, HTTPS proxy rules, MAC address records, scheduled wake tasks, and frpc config
+- Export: download a JSON backup containing users, tunnels, HTTPS proxy rules, MAC address records, scheduled wake tasks, and frpc config
 - Restore: upload a backup JSON and merge it into existing configuration without deleting items that are not in the backup
 - Merge keys: tunnels match by `name + type`, HTTPS proxy rules match by listen port, MAC address records match by MAC address, and scheduled wake tasks match by `task name + MAC address`
+- User backups include username, role, and disabled state only. Passwords and password hashes are not exported. Newly restored users are created disabled and require an administrator password reset before use.
+- Tunnel backups include the owner username and restore ownership by username when the user exists in the target system.
 - frpc config from the backup is not applied by default, which avoids overwriting the current runtime config
 
 Restore actions are recorded in audit logs. Export a backup before large configuration changes.
@@ -338,6 +342,7 @@ Most endpoints require a JWT token, except setup status, first-run setup, and he
 | `DELETE` | `/api/proxies/{id}` | Delete a tunnel |
 | `PUT` | `/api/proxies/{id}/enable` | Enable a tunnel and reload frpc |
 | `PUT` | `/api/proxies/{id}/disable` | Disable a tunnel and reload frpc |
+| `PUT` | `/api/proxies/{id}/owner` | Assign or clear tunnel owner, administrator only |
 | `POST` | `/api/proxies/sync` | Sync tunnels from current frpc config |
 | `GET` | `/api/config` | Get frpc server config |
 | `PUT` | `/api/config` | Update frpc server config and reload |
