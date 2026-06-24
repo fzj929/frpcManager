@@ -20,7 +20,7 @@
           <el-option label="运行中" value="running" />
           <el-option label="已停用" value="disabled" />
         </el-select>
-        <el-button @click="handleSync" :loading="syncing" :icon="Refresh">从 frpc 同步</el-button>
+        <el-button v-if="auth.isAdmin" @click="handleSync" :loading="syncing" :icon="Refresh">从 frpc 同步</el-button>
         <el-button type="primary" @click="openAddDialog" :icon="Plus">添加通道</el-button>
       </div>
     </div>
@@ -84,6 +84,12 @@
           </template>
         </el-table-column>
 
+        <el-table-column label="创建者" width="110">
+          <template #default="{ row }">
+            <span class="muted">{{ row.createdByUsername || '历史配置' }}</span>
+          </template>
+        </el-table-column>
+
         <!-- Remote addr -->
         <el-table-column label="远程地址" min-width="180">
           <template #default="{ row }">
@@ -98,6 +104,7 @@
             <el-switch
               :model-value="row.isEnabled"
               :loading="togglingId === row.id"
+              :disabled="!row.canManage"
               @change="(val: boolean) => onToggle(row, val)"
             />
           </template>
@@ -113,6 +120,7 @@
                 type="primary"
                 size="small"
                 :icon="Edit"
+                :disabled="!row.canManage"
                 @click="openEditDialog(row)"
               />
               <el-button
@@ -121,6 +129,7 @@
                 type="danger"
                 size="small"
                 :icon="Delete"
+                :disabled="!row.canManage"
                 @click="handleDelete(row)"
               />
             </div>
@@ -157,10 +166,12 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, Refresh, Edit, Delete, Timer, Unlock } from '@element-plus/icons-vue'
 import { fetchProxies, enableProxy, disableProxy, deleteProxy, syncFromFrpc } from '@/api'
 import type { Proxy } from '@/types'
+import { useAuthStore } from '@/stores/auth'
 import ProxyFormDialog from '@/components/ProxyFormDialog.vue'
 import TimedEnableDialog from '@/components/TimedEnableDialog.vue'
 
 const proxies = ref<Proxy[]>([])
+const auth = useAuthStore()
 const loading = ref(false)
 const syncing = ref(false)
 const togglingId = ref<number | null>(null)

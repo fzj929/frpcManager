@@ -4,7 +4,7 @@
 
     <el-row :gutter="24">
       <!-- frpc Server Config -->
-      <el-col :xs="24" :lg="14">
+      <el-col v-if="auth.isAdmin" :xs="24" :lg="14">
         <el-card class="settings-card">
           <template #header>
             <div class="card-header">
@@ -199,6 +199,9 @@ import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'elem
 import { Setting, Lock, InfoFilled, Check, Refresh, DataLine, Files } from '@element-plus/icons-vue'
 import { fetchConfig, saveConfig as apiSaveConfig, reloadFrpc as apiReload, authChangePassword, exportBackup, restoreBackup, fetchHealth } from '@/api'
 import type { FrpcConfig, HealthStatus } from '@/types'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
 
 // Config form
 const configFormRef = ref<FormInstance>()
@@ -375,8 +378,10 @@ async function changePassword() {
 }
 
 onMounted(() => {
-  loadConfig()
-  loadHealth()
+  if (auth.isAdmin) {
+    loadConfig()
+    loadHealth()
+  }
 })
 </script>
 

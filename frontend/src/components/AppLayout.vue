@@ -45,9 +45,13 @@
           <el-icon><Lock /></el-icon>
           <template #title>HTTPS代理</template>
         </el-menu-item>
-        <el-menu-item index="/audit-logs">
+        <el-menu-item v-if="auth.isAdmin" index="/audit-logs">
           <el-icon><Document /></el-icon>
           <template #title>操作日志</template>
+        </el-menu-item>
+        <el-menu-item v-if="auth.isAdmin" index="/users">
+          <el-icon><User /></el-icon>
+          <template #title>用户管理</template>
         </el-menu-item>
         <el-menu-item index="/settings">
           <el-icon><Setting /></el-icon>
@@ -127,6 +131,7 @@ const pageTitles: Record<string, string> = {
   '/wake-records': '唤醒记录',
   '/https-proxies': 'HTTPS代理',
   '/audit-logs': '操作日志',
+  '/users': '用户管理',
   '/settings': '系统设置'
 }
 

@@ -4,6 +4,10 @@ All notable changes to this project should be documented in this file.
 
 ## Unreleased
 
+- Added administrator/user role control with a user management page for creating users, changing roles, disabling accounts, and resetting passwords.
+- Added resource ownership for frp tunnels and HTTPS proxy rules: all users can view resources, normal users can manage only their own resources, and administrators can manage all resources.
+- Restricted global operations such as frpc configuration, backup/restore, audit logs, and sync-from-frpc to administrators.
+- Added enable-time port conflict checks while still allowing duplicate saved configurations: enabled HTTPS proxy rules cannot share a listen port, and enabled TCP/UDP tunnels cannot share the same remote port.
 - Added Wake-on-LAN MAC address management, including host naming, automatic MAC address collection, and wake actions from the address book.
 - Enhanced scheduled Wake-on-LAN tasks with daily, selected weekdays, and one-time specific-date modes.
 - Changed backup restore to merge imported data without deleting existing tunnels, HTTPS proxy rules, or MAC address records.

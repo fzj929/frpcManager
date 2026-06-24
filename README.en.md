@@ -15,6 +15,7 @@ FrpC Manager is a web management platform for frpc tunnels, built with **Vue 3 +
 - **Sync from frpc**: import existing tunnels from the current frpc configuration
 - **Server configuration**: edit frpc server address, port, auth method, and token
 - **Authentication**: JWT login and password change
+- **User roles**: administrators can manage all resources; normal users can view all tunnels and HTTPS proxies but can manage only resources they created
 - **First-run setup wizard**: create the first administrator account from the web UI
 - **Audit logs**: record login, tunnel, config, backup, restore, and Wake-on-LAN actions
 - **Health checks**: check database and frpc Web API connectivity
@@ -169,6 +170,21 @@ ForwardedHeaders__Enabled=true
 ForwardedHeaders__KnownNetworks__0=172.18.0.0/16
 ```
 
+### User Roles and Resource Ownership
+
+FrpC Manager uses a simple two-role permission model:
+
+| Role | Permissions |
+| --- | --- |
+| Administrator | Manage users, frpc settings, backups, audit logs, and all tunnels / HTTPS proxy rules |
+| Normal user | View all tunnels and HTTPS proxy rules, create new resources, and manage only resources they created |
+
+The first account created during setup is an administrator. Administrators can open **User Management** to create users, change roles, disable accounts, and reset passwords. Disabled accounts cannot log in.
+
+Existing tunnels and HTTPS proxy rules created before this feature do not have an owner. They are shown as legacy configuration and can be managed by administrators only.
+
+After upgrading from an older version, sign out and sign in again so the browser stores a JWT token with role claims.
+
 ### Health Check
 
 The Settings page includes a health check card. You can also call:
@@ -201,6 +217,7 @@ The HTTPS Proxy page wraps an internal HTTP service with a local HTTPS endpoint:
 - Use the default website certificate, or upload an IIS certificate or Nginx certificate
 - Enable, disable, edit, and delete proxy rules
 - Restore enabled proxy rules automatically on service startup
+- Duplicate saved listen ports are allowed, but two HTTPS proxy rules with the same listen port cannot be enabled at the same time
 
 Example:
 
@@ -241,6 +258,16 @@ The Settings page can export and restore configuration:
 - frpc config from the backup is not applied by default, which avoids overwriting the current runtime config
 
 Restore actions are recorded in audit logs. Export a backup before large configuration changes.
+
+### Port Conflict Rules
+
+Saved configurations are allowed to reuse ports because many deployments keep alternative rules disabled most of the time. Runtime enablement is strict:
+
+- HTTPS proxy rules cannot use management ports `6887` or `6888`.
+- Two enabled HTTPS proxy rules cannot share the same listen port.
+- Two enabled TCP tunnels cannot share the same remote port.
+- Two enabled UDP tunnels cannot share the same remote port.
+- Duplicate disabled configurations are allowed and will be checked again when they are enabled.
 
 ### Database Initialization
 
@@ -301,6 +328,10 @@ Most endpoints require a JWT token, except setup status, first-run setup, and he
 | `POST` | `/api/auth/change-password` | Change password |
 | `GET` | `/api/auth/setup-status` | Check whether first-run setup is required |
 | `POST` | `/api/auth/setup` | Create the first administrator account |
+| `GET` | `/api/users` | List users, administrator only |
+| `POST` | `/api/users` | Create a user, administrator only |
+| `PUT` | `/api/users/{id}` | Update role or disabled state, administrator only |
+| `POST` | `/api/users/{id}/reset-password` | Reset a user password, administrator only |
 | `GET` | `/api/proxies` | List all tunnels with runtime status |
 | `POST` | `/api/proxies` | Create a tunnel |
 | `PUT` | `/api/proxies/{id}` | Update a tunnel |

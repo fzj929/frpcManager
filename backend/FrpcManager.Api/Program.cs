@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
-const int DatabaseCompatibilityVersion = 4;
+const int DatabaseCompatibilityVersion = 5;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -96,6 +96,8 @@ builder.Services.AddScoped<FrpcApiService>();
 builder.Services.AddScoped<WakeOnLanService>();
 builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddScoped<BackupService>();
+builder.Services.AddScoped<UserContextService>();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<HttpsProxyRuntimeService>();
 builder.Services.AddSingleton<LoginAttemptLimiter>();
 builder.Services.AddSingleton<TomlService>();
@@ -156,6 +158,7 @@ using (var scope = app.Services.CreateScope())
             db.Users.Add(new User
             {
                 Username = username,
+                Role = UserRoles.Admin,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
                 CreatedAt = DateTime.UtcNow
             });
@@ -267,8 +270,12 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
     if (databaseProvider == "mysql")
     {
         AddMySqlColumnIfMissing(db, "Proxies", "ExpiresAt", "ALTER TABLE `Proxies` ADD COLUMN `ExpiresAt` datetime(6) NULL");
+        AddMySqlColumnIfMissing(db, "Proxies", "CreatedByUserId", "ALTER TABLE `Proxies` ADD COLUMN `CreatedByUserId` int NULL");
         AddMySqlColumnIfMissing(db, "Users", "FailedLoginCount", "ALTER TABLE `Users` ADD COLUMN `FailedLoginCount` int NOT NULL DEFAULT 0");
         AddMySqlColumnIfMissing(db, "Users", "LockedUntil", "ALTER TABLE `Users` ADD COLUMN `LockedUntil` datetime(6) NULL");
+        AddMySqlColumnIfMissing(db, "Users", "Role", "ALTER TABLE `Users` ADD COLUMN `Role` varchar(32) NOT NULL DEFAULT 'admin'");
+        AddMySqlColumnIfMissing(db, "Users", "IsDisabled", "ALTER TABLE `Users` ADD COLUMN `IsDisabled` tinyint(1) NOT NULL DEFAULT 0");
+        AddMySqlColumnIfMissing(db, "Users", "UpdatedAt", "ALTER TABLE `Users` ADD COLUMN `UpdatedAt` datetime(6) NULL");
         AddMySqlColumnIfMissing(db, "WakeSchedules", "ScheduleMode", "ALTER TABLE `WakeSchedules` ADD COLUMN `ScheduleMode` varchar(20) NOT NULL DEFAULT 'daily'");
         AddMySqlColumnIfMissing(db, "WakeSchedules", "DaysOfWeek", "ALTER TABLE `WakeSchedules` ADD COLUMN `DaysOfWeek` varchar(32) NOT NULL DEFAULT ''");
         AddMySqlColumnIfMissing(db, "WakeSchedules", "SpecificDate", "ALTER TABLE `WakeSchedules` ADD COLUMN `SpecificDate` datetime(6) NULL");
@@ -359,16 +366,27 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
             );
             """);
         AddMySqlColumnIfMissing(db, "HttpsProxyRules", "CertificateKeyPath", "ALTER TABLE `HttpsProxyRules` ADD COLUMN `CertificateKeyPath` varchar(1024) NOT NULL DEFAULT ''");
-        if (!MySqlIndexExists(db, "HttpsProxyRules", "IX_HttpsProxyRules_ListenPort"))
-            db.Database.ExecuteSqlRaw("""CREATE UNIQUE INDEX `IX_HttpsProxyRules_ListenPort` ON `HttpsProxyRules` (`ListenPort`);""");
+        AddMySqlColumnIfMissing(db, "HttpsProxyRules", "CreatedByUserId", "ALTER TABLE `HttpsProxyRules` ADD COLUMN `CreatedByUserId` int NULL");
+        if (MySqlIndexExists(db, "HttpsProxyRules", "IX_HttpsProxyRules_ListenPort"))
+            db.Database.ExecuteSqlRaw("""DROP INDEX `IX_HttpsProxyRules_ListenPort` ON `HttpsProxyRules`;""");
+        if (!MySqlIndexExists(db, "HttpsProxyRules", "IX_HttpsProxyRules_ListenPort_NonUnique"))
+            db.Database.ExecuteSqlRaw("""CREATE INDEX `IX_HttpsProxyRules_ListenPort_NonUnique` ON `HttpsProxyRules` (`ListenPort`);""");
         if (!MySqlIndexExists(db, "HttpsProxyRules", "IX_HttpsProxyRules_IsEnabled"))
             db.Database.ExecuteSqlRaw("""CREATE INDEX `IX_HttpsProxyRules_IsEnabled` ON `HttpsProxyRules` (`IsEnabled`);""");
+        if (!MySqlIndexExists(db, "Proxies", "IX_Proxies_CreatedByUserId"))
+            db.Database.ExecuteSqlRaw("""CREATE INDEX `IX_Proxies_CreatedByUserId` ON `Proxies` (`CreatedByUserId`);""");
+        if (!MySqlIndexExists(db, "HttpsProxyRules", "IX_HttpsProxyRules_CreatedByUserId"))
+            db.Database.ExecuteSqlRaw("""CREATE INDEX `IX_HttpsProxyRules_CreatedByUserId` ON `HttpsProxyRules` (`CreatedByUserId`);""");
         return;
     }
 
     AddSqliteColumnIfMissing(db, "Proxies", "ExpiresAt", "ALTER TABLE Proxies ADD COLUMN ExpiresAt TEXT NULL");
+    AddSqliteColumnIfMissing(db, "Proxies", "CreatedByUserId", "ALTER TABLE Proxies ADD COLUMN CreatedByUserId INTEGER NULL");
     AddSqliteColumnIfMissing(db, "Users", "FailedLoginCount", "ALTER TABLE Users ADD COLUMN FailedLoginCount INTEGER NOT NULL DEFAULT 0");
     AddSqliteColumnIfMissing(db, "Users", "LockedUntil", "ALTER TABLE Users ADD COLUMN LockedUntil TEXT NULL");
+    AddSqliteColumnIfMissing(db, "Users", "Role", "ALTER TABLE Users ADD COLUMN Role TEXT NOT NULL DEFAULT 'admin'");
+    AddSqliteColumnIfMissing(db, "Users", "IsDisabled", "ALTER TABLE Users ADD COLUMN IsDisabled INTEGER NOT NULL DEFAULT 0");
+    AddSqliteColumnIfMissing(db, "Users", "UpdatedAt", "ALTER TABLE Users ADD COLUMN UpdatedAt TEXT NULL");
     AddSqliteColumnIfMissing(db, "WakeSchedules", "ScheduleMode", "ALTER TABLE WakeSchedules ADD COLUMN ScheduleMode TEXT NOT NULL DEFAULT 'daily'");
     AddSqliteColumnIfMissing(db, "WakeSchedules", "DaysOfWeek", "ALTER TABLE WakeSchedules ADD COLUMN DaysOfWeek TEXT NOT NULL DEFAULT ''");
     AddSqliteColumnIfMissing(db, "WakeSchedules", "SpecificDate", "ALTER TABLE WakeSchedules ADD COLUMN SpecificDate TEXT NULL");
@@ -450,8 +468,12 @@ static void InitializeDatabaseCompatibility(AppDbContext db, string databaseProv
         );
         """);
     AddSqliteColumnIfMissing(db, "HttpsProxyRules", "CertificateKeyPath", "ALTER TABLE HttpsProxyRules ADD COLUMN CertificateKeyPath TEXT NOT NULL DEFAULT ''");
-    db.Database.ExecuteSqlRaw("""CREATE UNIQUE INDEX IF NOT EXISTS "IX_HttpsProxyRules_ListenPort" ON "HttpsProxyRules" ("ListenPort");""");
+    AddSqliteColumnIfMissing(db, "HttpsProxyRules", "CreatedByUserId", "ALTER TABLE HttpsProxyRules ADD COLUMN CreatedByUserId INTEGER NULL");
+    db.Database.ExecuteSqlRaw("""DROP INDEX IF EXISTS "IX_HttpsProxyRules_ListenPort";""");
+    db.Database.ExecuteSqlRaw("""CREATE INDEX IF NOT EXISTS "IX_HttpsProxyRules_ListenPort_NonUnique" ON "HttpsProxyRules" ("ListenPort");""");
     db.Database.ExecuteSqlRaw("""CREATE INDEX IF NOT EXISTS "IX_HttpsProxyRules_IsEnabled" ON "HttpsProxyRules" ("IsEnabled");""");
+    db.Database.ExecuteSqlRaw("""CREATE INDEX IF NOT EXISTS "IX_Proxies_CreatedByUserId" ON "Proxies" ("CreatedByUserId");""");
+    db.Database.ExecuteSqlRaw("""CREATE INDEX IF NOT EXISTS "IX_HttpsProxyRules_CreatedByUserId" ON "HttpsProxyRules" ("CreatedByUserId");""");
 }
 
 static bool ShouldInitializeDatabaseCompatibility(AppDbContext db, string databaseProvider, int targetVersion)

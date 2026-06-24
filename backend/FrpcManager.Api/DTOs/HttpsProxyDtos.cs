@@ -10,6 +10,9 @@ public record HttpsProxyRuleResponse(
     bool HasPrivateKey,
     string Description,
     bool IsEnabled,
+    int? CreatedByUserId,
+    string CreatedByUsername,
+    bool CanManage,
     DateTime CreatedAt,
     DateTime? UpdatedAt
 );

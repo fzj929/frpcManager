@@ -16,40 +16,62 @@ public class ProxyService
         _frpcApi = frpcApi;
     }
 
-    public async Task<List<ProxyResponse>> GetAllProxiesAsync()
+    public async Task<List<ProxyResponse>> GetAllProxiesAsync(int? currentUserId, bool isAdmin)
     {
-        var proxies = await _db.Proxies.OrderBy(p => p.Name).ThenBy(p => p.Type).ToListAsync();
+        var proxies = await _db.Proxies
+            .Include(p => p.CreatedByUser)
+            .OrderBy(p => p.Name)
+            .ThenBy(p => p.Type)
+            .ToListAsync();
         var statusMap = await BuildStatusMapAsync();
-        return proxies.Select(p => ToResponse(p, statusMap)).ToList();
+        return proxies.Select(p => ToResponse(p, statusMap, currentUserId, isAdmin)).ToList();
     }
 
-    public async Task<ProxyResponse> CreateProxyAsync(CreateProxyRequest request)
+    public async Task<ProxyResponse> CreateProxyAsync(CreateProxyRequest request, int? createdByUserId = null)
     {
         var proxy = new Proxy
         {
             Name = request.Name,
-            Type = request.Type.ToLower(),
+            Type = request.Type.ToLowerInvariant(),
             LocalIP = request.LocalIP,
             LocalPort = request.LocalPort,
             RemotePort = request.RemotePort,
             Description = request.Description,
             IsEnabled = false,
+            CreatedByUserId = createdByUserId,
             CreatedAt = DateTime.UtcNow
         };
+
         _db.Proxies.Add(proxy);
         await _db.SaveChangesAsync();
+        await _db.Entry(proxy).Reference(p => p.CreatedByUser).LoadAsync();
+
         var statusMap = await BuildStatusMapAsync();
-        return ToResponse(proxy, statusMap);
+        return ToResponse(proxy, statusMap, createdByUserId, true);
     }
 
-    public async Task<ProxyResponse?> UpdateProxyAsync(int id, UpdateProxyRequest request)
+    public async Task<(bool Success, string Message, ProxyResponse? Proxy)> UpdateProxyAsync(
+        int id,
+        UpdateProxyRequest request,
+        int? currentUserId,
+        bool isAdmin)
     {
-        var proxy = await _db.Proxies.FindAsync(id);
-        if (proxy == null) return null;
+        var proxy = await _db.Proxies
+            .Include(p => p.CreatedByUser)
+            .FirstOrDefaultAsync(p => p.Id == id);
+        if (proxy == null) return (false, "通道不存在", null);
+        if (!CanManage(proxy, currentUserId, isAdmin)) return (false, "没有权限修改这个通道", null);
+
+        if (proxy.IsEnabled)
+        {
+            var conflict = await FindRemotePortConflictAsync(request.Type, request.RemotePort, id);
+            if (conflict != null)
+                return (false, $"远程端口 {request.RemotePort} 已被已启用通道“{conflict.Name}”使用", null);
+        }
 
         var wasEnabled = proxy.IsEnabled;
         proxy.Name = request.Name;
-        proxy.Type = request.Type.ToLower();
+        proxy.Type = request.Type.ToLowerInvariant();
         proxy.LocalIP = request.LocalIP;
         proxy.LocalPort = request.LocalPort;
         proxy.RemotePort = request.RemotePort;
@@ -58,32 +80,52 @@ public class ProxyService
         await _db.SaveChangesAsync();
 
         if (wasEnabled)
-            await SyncToFrpcAsync();
+        {
+            var syncResult = await SyncToFrpcAsync();
+            if (!syncResult.Success)
+                return (false, syncResult.Message, null);
+        }
 
         var statusMap = await BuildStatusMapAsync();
-        return ToResponse(proxy, statusMap);
+        return (true, "操作成功", ToResponse(proxy, statusMap, currentUserId, isAdmin));
     }
 
-    public async Task<bool> DeleteProxyAsync(int id)
+    public async Task<(bool Success, string Message)> DeleteProxyAsync(int id, int? currentUserId = null, bool isAdmin = true)
     {
         var proxy = await _db.Proxies.FindAsync(id);
-        if (proxy == null) return false;
+        if (proxy == null) return (false, "通道不存在");
+        if (!CanManage(proxy, currentUserId, isAdmin)) return (false, "没有权限删除这个通道");
 
         var wasEnabled = proxy.IsEnabled;
         _db.Proxies.Remove(proxy);
         await _db.SaveChangesAsync();
 
         if (wasEnabled)
-            await SyncToFrpcAsync();
+            return await SyncToFrpcAsync();
 
-        return true;
+        return (true, "删除成功");
     }
 
-    public async Task<(bool Success, string Message)> SetEnabledAsync(int id, bool enabled, int? durationMinutes = null)
+    public async Task<(bool Success, string Message)> SetEnabledAsync(
+        int id,
+        bool enabled,
+        int? durationMinutes = null,
+        int? currentUserId = null,
+        bool isAdmin = true)
     {
         var proxy = await _db.Proxies.FindAsync(id);
         if (proxy == null) return (false, "通道不存在");
+        if (!CanManage(proxy, currentUserId, isAdmin)) return (false, "没有权限操作这个通道");
 
+        if (enabled)
+        {
+            var conflict = await FindRemotePortConflictAsync(proxy.Type, proxy.RemotePort, proxy.Id);
+            if (conflict != null)
+                return (false, $"远程端口 {proxy.RemotePort} 已被已启用通道“{conflict.Name}”使用，不能同时启用");
+        }
+
+        var oldEnabled = proxy.IsEnabled;
+        var oldExpiresAt = proxy.ExpiresAt;
         proxy.IsEnabled = enabled;
         proxy.UpdatedAt = DateTime.UtcNow;
         proxy.ExpiresAt = enabled && durationMinutes.HasValue
@@ -91,7 +133,14 @@ public class ProxyService
             : null;
 
         await _db.SaveChangesAsync();
-        return await SyncToFrpcAsync();
+        var syncResult = await SyncToFrpcAsync();
+        if (syncResult.Success) return syncResult;
+
+        proxy.IsEnabled = oldEnabled;
+        proxy.ExpiresAt = oldExpiresAt;
+        proxy.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        return syncResult;
     }
 
     public async Task<(bool Success, string Message)> SyncToFrpcAsync()
@@ -153,6 +202,7 @@ public class ProxyService
                     LocalPort = fp.LocalPort,
                     RemotePort = fp.RemotePort,
                     IsEnabled = true,
+                    CreatedByUserId = null,
                     CreatedAt = DateTime.UtcNow
                 });
             }
@@ -171,7 +221,30 @@ public class ProxyService
         return map;
     }
 
-    private static ProxyResponse ToResponse(Proxy p, Dictionary<string, StatusProxyResponse> statusMap)
+    private async Task<Proxy?> FindRemotePortConflictAsync(string type, int remotePort, int currentId)
+    {
+        var normalizedType = type.ToLowerInvariant();
+        if (normalizedType is not ("tcp" or "udp"))
+            return null;
+
+        return await _db.Proxies
+            .Where(p =>
+                p.Id != currentId &&
+                p.IsEnabled &&
+                p.RemotePort == remotePort &&
+                p.Type.ToLower() == normalizedType)
+            .OrderBy(p => p.Name)
+            .FirstOrDefaultAsync();
+    }
+
+    private static bool CanManage(Proxy proxy, int? currentUserId, bool isAdmin) =>
+        isAdmin || (currentUserId.HasValue && proxy.CreatedByUserId == currentUserId.Value);
+
+    private static ProxyResponse ToResponse(
+        Proxy p,
+        Dictionary<string, StatusProxyResponse> statusMap,
+        int? currentUserId,
+        bool isAdmin)
     {
         var key = $"{p.Name}|{p.Type}";
         statusMap.TryGetValue(key, out var s);
@@ -180,6 +253,8 @@ public class ProxyService
             p.Id, p.Name, p.Type, p.LocalIP, p.LocalPort, p.RemotePort,
             p.Description, p.IsEnabled, status,
             s?.RemoteAddr ?? "", s?.Error ?? "",
+            p.CreatedByUserId, p.CreatedByUser?.Username ?? "",
+            isAdmin || (currentUserId.HasValue && p.CreatedByUserId == currentUserId.Value),
             p.CreatedAt, p.UpdatedAt, p.ExpiresAt
         );
     }

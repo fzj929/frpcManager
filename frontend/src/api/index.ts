@@ -23,6 +23,7 @@ api.interceptors.response.use(
     if (err.response?.status === 401 && !isLoginRequest && !isOnLoginPage) {
       localStorage.removeItem('token')
       localStorage.removeItem('username')
+      localStorage.removeItem('role')
       window.location.href = '/login'
     }
     return Promise.reject(err)
@@ -42,6 +43,13 @@ export const authChangePassword = (currentPassword: string, newPassword: string)
   api.post('/auth/change-password', { currentPassword, newPassword })
 
 export const authMe = () => api.get('/auth/me')
+
+// Users
+export const fetchUsers = () => api.get('/users')
+export const createUser = (data: object) => api.post('/users', data)
+export const updateUser = (id: number, data: object) => api.put(`/users/${id}`, data)
+export const resetUserPassword = (id: number, newPassword: string) =>
+  api.post(`/users/${id}/reset-password`, { newPassword })
 
 // Proxies
 export const fetchProxies = () => api.get('/proxies')

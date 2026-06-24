@@ -24,6 +24,11 @@
           </template>
         </el-table-column>
         <el-table-column prop="targetUrl" label="目标 HTTP 地址" min-width="220" show-overflow-tooltip />
+        <el-table-column label="创建者" width="110">
+          <template #default="{ row }">
+            <span class="muted">{{ row.createdByUsername || '历史配置' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="证书" width="120">
           <template #default="{ row }">
             <el-tag :type="row.certificateMode === 'default' ? 'info' : 'warning'">
@@ -36,6 +41,7 @@
             <el-switch
               v-model="row.isEnabled"
               :loading="switchingId === row.id"
+              :disabled="!row.canManage"
               @change="toggleRule(row)"
             />
           </template>
@@ -43,8 +49,8 @@
         <el-table-column prop="description" label="备注" min-width="160" show-overflow-tooltip />
         <el-table-column label="操作" width="170" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" :icon="Edit" @click="openDialog(row)">编辑</el-button>
-            <el-button size="small" type="danger" :icon="Delete" @click="removeRule(row)">删除</el-button>
+            <el-button size="small" :icon="Edit" :disabled="!row.canManage" @click="openDialog(row)">编辑</el-button>
+            <el-button size="small" type="danger" :icon="Delete" :disabled="!row.canManage" @click="removeRule(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -377,6 +383,10 @@ onMounted(loadRules)
   color: #909399;
   font-size: 12px;
   line-height: 1.4;
+}
+
+.muted {
+  color: #909399;
 }
 
 @media (max-width: 768px) {

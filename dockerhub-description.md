@@ -8,7 +8,9 @@ FrpC Manager is a web management platform for frpc tunnels, built with Vue 3, AS
 - Enable or disable tunnels and reload frpc automatically
 - Sync existing tunnels from the current frpc configuration
 - First-run setup wizard, no built-in default admin password
-- JWT authentication and password change
+- JWT authentication, password change, and administrator/user role control
+- Resource ownership: normal users can view all tunnels and HTTPS proxy rules but manage only their own resources
+- Runtime port conflict checks while allowing duplicate disabled configurations
 - Audit logs for login, tunnel, config, backup, restore, and Wake-on-LAN actions
 - Health check endpoint for database and frpc API status
 - Backup and restore for tunnel and frpc configuration

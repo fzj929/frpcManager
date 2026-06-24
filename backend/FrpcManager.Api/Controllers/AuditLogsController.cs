@@ -1,3 +1,4 @@
+using FrpcManager.Api.Models;
 using FrpcManager.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -6,7 +7,7 @@ namespace FrpcManager.Api.Controllers;
 
 [ApiController]
 [Route("api/audit-logs")]
-[Authorize]
+[Authorize(Roles = UserRoles.Admin)]
 public class AuditLogsController : ControllerBase
 {
     private readonly AuditLogService _auditLogService;

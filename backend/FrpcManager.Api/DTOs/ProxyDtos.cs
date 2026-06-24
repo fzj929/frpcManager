@@ -32,6 +32,9 @@ public record ProxyResponse(
     string Status,
     string RemoteAddr,
     string ErrorMsg,
+    int? CreatedByUserId,
+    string CreatedByUsername,
+    bool CanManage,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     DateTime? ExpiresAt

@@ -34,6 +34,9 @@ public class AuthService
         if (user == null)
             return LoginResult.Failed();
 
+        if (user.IsDisabled)
+            return LoginResult.Disabled();
+
         if (user.LockedUntil.HasValue && user.LockedUntil.Value > now)
             return LoginResult.Locked(user.FailedLoginCount, user.LockedUntil.Value);
 
@@ -60,7 +63,7 @@ public class AuthService
         var token = GenerateToken(user);
         var expiry = now.AddHours(
             double.TryParse(_config["Jwt:ExpiryInHours"], out var h) ? h : 24);
-        return LoginResult.Success(new LoginResponse(token, user.Username, expiry));
+        return LoginResult.Success(new LoginResponse(token, user.Username, user.Role, expiry));
     }
 
     public async Task<bool> ChangePasswordAsync(string username, ChangePasswordRequest request)
@@ -88,6 +91,7 @@ public class AuthService
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.Username),
+            new Claim(ClaimTypes.Role, user.Role),
         };
 
         var token = new JwtSecurityToken(
@@ -106,7 +110,8 @@ public enum LoginResultStatus
 {
     Success,
     Failed,
-    Locked
+    Locked,
+    Disabled
 }
 
 public record LoginResult(
@@ -119,4 +124,5 @@ public record LoginResult(
     public static LoginResult Failed(int failedAttempts = 0) => new(LoginResultStatus.Failed, FailedAttempts: failedAttempts);
     public static LoginResult Locked(int failedAttempts, DateTime lockedUntil) =>
         new(LoginResultStatus.Locked, FailedAttempts: failedAttempts, LockedUntil: lockedUntil);
+    public static LoginResult Disabled() => new(LoginResultStatus.Disabled);
 }

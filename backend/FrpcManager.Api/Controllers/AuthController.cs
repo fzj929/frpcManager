@@ -55,6 +55,7 @@ public class AuthController : ControllerBase
         _db.Users.Add(new User
         {
             Username = username,
+            Role = UserRoles.Admin,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             CreatedAt = DateTime.UtcNow
         });
@@ -85,6 +86,17 @@ public class AuthController : ControllerBase
         }
 
         var result = await _authService.LoginAsync(request);
+        if (result.Status == LoginResultStatus.Disabled)
+        {
+            await _auditLogService.LogAsync(
+                HttpContext,
+                "auth.login.disabled",
+                username,
+                $"disabled account login rejected; ip={ipAddress}",
+                false);
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = "账号已被禁用" });
+        }
+
         if (result.Status == LoginResultStatus.Locked)
         {
             await _auditLogService.LogAsync(
@@ -139,6 +151,7 @@ public class AuthController : ControllerBase
     public IActionResult Me()
     {
         var username = User.FindFirst(ClaimTypes.Name)?.Value;
-        return Ok(new { username });
+        var role = User.FindFirst(ClaimTypes.Role)?.Value ?? UserRoles.User;
+        return Ok(new { username, role });
     }
 }

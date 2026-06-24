@@ -1,4 +1,5 @@
 using FrpcManager.Api.DTOs;
+using FrpcManager.Api.Models;
 using FrpcManager.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +8,7 @@ namespace FrpcManager.Api.Controllers;
 
 [ApiController]
 [Route("api/backup")]
-[Authorize]
+[Authorize(Roles = UserRoles.Admin)]
 public class BackupController : ControllerBase
 {
     private readonly BackupService _backupService;

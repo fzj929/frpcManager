@@ -10,6 +10,9 @@ export interface Proxy {
   status: string
   remoteAddr: string
   errorMsg: string
+  createdByUserId: number | null
+  createdByUsername: string
+  canManage: boolean
   createdAt: string
   updatedAt: string | null
   expiresAt: string | null
@@ -36,6 +39,7 @@ export interface ProxyStatusItem {
 export interface LoginResponse {
   token: string
   username: string
+  role: string
   expiresAt: string
 }
 
@@ -119,6 +123,18 @@ export interface HttpsProxyRule {
   hasPrivateKey: boolean
   description: string
   isEnabled: boolean
+  createdByUserId: number | null
+  createdByUsername: string
+  canManage: boolean
+  createdAt: string
+  updatedAt: string | null
+}
+
+export interface UserAccount {
+  id: number
+  username: string
+  role: string
+  isDisabled: boolean
   createdAt: string
   updatedAt: string | null
 }

@@ -34,8 +34,12 @@ This file gives AI coding tools and maintainers a fast map of the FrpcManager co
 - `Controllers/AuthController.cs`
   - Login, setup wizard, current user, password change.
 
+- `Controllers/UsersController.cs`
+  - Administrator-only user management: create users, update role/disabled state, and reset passwords.
+
 - `Controllers/ProxiesController.cs`
   - frp tunnel CRUD, enable/disable, timed enable, sync from frpc.
+  - All users can view tunnels. Normal users can manage only tunnels they created; administrators can manage all tunnels.
 
 - `Controllers/ConfigController.cs`
   - frpc server configuration, status, reload.
@@ -44,6 +48,7 @@ This file gives AI coding tools and maintainers a fast map of the FrpcManager co
   - Lightweight HTTPS reverse proxy rules.
   - Supports default site certificate, IIS `.pfx/.p12`, and Nginx-style `.pem/.crt/.cer + .key`.
   - Can optionally create a disabled frp TCP tunnel for a new HTTPS proxy.
+  - All users can view HTTPS proxy rules. Normal users can manage only rules they created; administrators can manage all rules.
 
 - `Controllers/WakeOnLanController.cs`
   - Wake-on-LAN send, MAC address book, logs, schedules, wake again.
@@ -51,9 +56,11 @@ This file gives AI coding tools and maintainers a fast map of the FrpcManager co
 - `Controllers/BackupController.cs`
   - Export/restore frp tunnels, HTTPS proxy rules, and frpc config.
   - Does not export uploaded certificate files, private keys, certificate passwords, or user passwords.
+  - Administrator-only.
 
 - `Controllers/AuditLogsController.cs`
   - Operation logs.
+  - Administrator-only.
 
 - `Controllers/HealthController.cs`
   - Health checks.
@@ -61,7 +68,10 @@ This file gives AI coding tools and maintainers a fast map of the FrpcManager co
 ## Backend Services
 
 - `Services/AuthService.cs`
-  - User authentication and first admin setup.
+  - User authentication, role claims, disabled-account checks, and first admin setup.
+
+- `Services/UserContextService.cs`
+  - Current user ID, username, role, administrator check, and owner/admin resource management helper.
 
 - `Services/LoginAttemptLimiter.cs`
   - Login failure tracking and account/IP-related protection.
@@ -70,6 +80,8 @@ This file gives AI coding tools and maintainers a fast map of the FrpcManager co
   - Main frp tunnel business logic.
   - Creates tunnels disabled by default.
   - Syncs enabled tunnels to frpc config and reloads frpc.
+  - Enforces tunnel ownership for update/delete/enable/disable.
+  - Allows duplicate saved remote ports, but blocks enabling TCP/UDP tunnels that conflict with already enabled tunnels.
 
 - `Services/FrpcApiService.cs`
   - HTTP client wrapper for frpc web admin API.
@@ -102,13 +114,14 @@ This file gives AI coding tools and maintainers a fast map of the FrpcManager co
 
 - `Models/Proxy.cs`: frp tunnel.
 - `Models/HttpsProxyRule.cs`: lightweight HTTPS reverse proxy rule.
-- `Models/User.cs`: admin user and login lockout fields.
+- `Models/User.cs`: user account, role, disabled state, and login lockout fields.
 - `Models/AuditLog.cs`: operation log.
 - `Models/WakeLog.cs`, `Models/WakeSchedule.cs`, `Models/WakeMacAddress.cs`: Wake-on-LAN records, schedules, and MAC address book.
 - `Models/FrpcConfig.cs`: frpc config model.
 
 - `DTOs/ProxyDtos.cs`: frp tunnel API contracts.
 - `DTOs/HttpsProxyDtos.cs`: HTTPS proxy API contracts.
+- `DTOs/UserDtos.cs`: user management API contracts.
 - `DTOs/BackupDtos.cs`: backup/restore JSON shape.
 - `DTOs/AuthDtos.cs`, `DTOs/ConfigDtos.cs`, `DTOs/WakeOnLanDtos.cs`, `DTOs/AuditDtos.cs`, `DTOs/SetupDtos.cs`: feature DTOs.
 
@@ -136,6 +149,7 @@ This file gives AI coding tools and maintainers a fast map of the FrpcManager co
 - `frontend/src/views/WakeRecordsView.vue`: wake logs and wake again.
 - `frontend/src/views/AuditLogsView.vue`: operation logs.
 - `frontend/src/views/SettingsView.vue`: frpc settings, health checks, backup/restore, account security, about.
+- `frontend/src/views/UsersView.vue`: administrator-only user management.
 - `frontend/src/components/AppLayout.vue`: navigation shell.
 
 ## Common Change Locations

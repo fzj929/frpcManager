@@ -58,7 +58,14 @@ const router = createRouter({
         {
           path: 'audit-logs',
           name: 'AuditLogs',
-          component: () => import('@/views/AuditLogsView.vue')
+          component: () => import('@/views/AuditLogsView.vue'),
+          meta: { requiresAdmin: true }
+        },
+        {
+          path: 'users',
+          name: 'Users',
+          component: () => import('@/views/UsersView.vue'),
+          meta: { requiresAdmin: true }
         },
         {
           path: 'settings',
@@ -87,6 +94,9 @@ router.beforeEach(async (to) => {
   }
   if (to.meta.requiresAuth !== false && !auth.isLoggedIn) {
     return '/login'
+  }
+  if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return '/dashboard'
   }
   if (to.path === '/setup') {
     try {

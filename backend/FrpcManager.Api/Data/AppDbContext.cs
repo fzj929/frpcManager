@@ -21,11 +21,18 @@ public class AppDbContext : DbContext
         {
             e.HasKey(u => u.Id);
             e.HasIndex(u => u.Username).IsUnique();
+            e.HasIndex(u => u.Role);
+            e.HasIndex(u => u.IsDisabled);
         });
 
         modelBuilder.Entity<Proxy>(e =>
         {
             e.HasKey(p => p.Id);
+            e.HasIndex(p => p.CreatedByUserId);
+            e.HasOne(p => p.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(p => p.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<AuditLog>(e =>
@@ -57,8 +64,13 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<HttpsProxyRule>(e =>
         {
             e.HasKey(r => r.Id);
-            e.HasIndex(r => r.ListenPort).IsUnique();
+            e.HasIndex(r => r.ListenPort);
             e.HasIndex(r => r.IsEnabled);
+            e.HasIndex(r => r.CreatedByUserId);
+            e.HasOne(r => r.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(r => r.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }
