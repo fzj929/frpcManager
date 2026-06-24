@@ -269,7 +269,7 @@ docker compose up -d --build
 | `6887` | HTTP |
 | `6888` | HTTPS |
 
-Compose 默认将数据持久化到 `frpc-manager-data` 卷，并将容器内 frpc Web 管理地址设为 `host.docker.internal:7400`。如果你的 frpc 不在宿主机或端口不同，请覆盖 `Frpc__WebServerAddr` / `Frpc__WebServerPort` 或 `Frpc__ApiBaseUrl`。
+Compose 默认将数据持久化到 `frpc-manager-data` 卷，并使用应用配置中的 frpc Web 管理地址 `127.0.0.1:7400`。如果你的 frpc 不在容器内或端口不同，请覆盖 `Frpc__WebServerAddr` / `Frpc__WebServerPort` 或 `Frpc__ApiBaseUrl`。
 
 ---
 
@@ -479,7 +479,7 @@ frpc Web 管理地址也可以直接用完整地址覆盖：
 -e Frpc__ApiBaseUrl="http://host.docker.internal:7400"
 ```
 
-配置优先级为：`Frpc__ApiBaseUrl` 优先；未设置时使用 `Frpc__WebServerAddr` 和 `Frpc__WebServerPort` 拼接。普通服务器默认 `127.0.0.1:7400`，Docker 镜像内默认 `host.docker.internal:7400`。
+配置优先级为：`Frpc__ApiBaseUrl` 优先；未设置时使用 `Frpc__WebServerAddr` 和 `Frpc__WebServerPort` 拼接。默认地址为 `127.0.0.1:7400`；如果 frpc 运行在宿主机或其他机器，请按实际环境覆盖。
 
 Linux 环境如果需要容器发送 Wake-on-LAN 广播包到局域网，建议使用 host 网络模式：
 

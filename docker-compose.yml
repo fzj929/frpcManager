@@ -14,9 +14,11 @@ services:
       Database__Provider: sqlite
       ConnectionStrings__DefaultConnection: Data Source=/app/data/frpcmanager.db
       Jwt__KeyFile: /app/data/jwt.key
-      Frpc__WebServerAddr: host.docker.internal
-      Frpc__WebServerPort: "7400"
       # Admin__Password: "change-this-password"
+      # frpc Web API defaults to 127.0.0.1:7400 from appsettings.json.
+      # Override these only when frpc runs outside the container or on a different port.
+      # Frpc__WebServerAddr: 192.168.1.10
+      # Frpc__WebServerPort: "7400"
       # MySQL example:
       # Database__Provider: mysql
       # ConnectionStrings__MySql: Server=mysql;Port=3306;Database=frpcmanager;User=frpcmanager;Password=change-this-password;CharSet=utf8mb4;

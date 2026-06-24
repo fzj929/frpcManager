@@ -44,14 +44,14 @@ On first launch, open the web UI and create the first administrator account.
 docker compose up -d
 ```
 
-When frpc runs on the Docker host, the image defaults to:
+The image defaults to the application configuration value:
 
 ```bash
-Frpc__WebServerAddr=host.docker.internal
+Frpc__WebServerAddr=127.0.0.1
 Frpc__WebServerPort=7400
 ```
 
-For Linux hosts, you may need to set the host IP explicitly or use host networking depending on your Docker environment.
+If frpc runs on the Docker host or another machine, override `Frpc__WebServerAddr` / `Frpc__WebServerPort` or `Frpc__ApiBaseUrl` for your environment.
 
 ## MySQL Example
 

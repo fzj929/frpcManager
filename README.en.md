@@ -402,24 +402,24 @@ docker run -d \
   fengzhengjin/frpc-manager:latest
 ```
 
-When frpc runs on the Docker host, the image defaults to:
+The image defaults to the application configuration value:
 
 ```bash
-Frpc__WebServerAddr=host.docker.internal
+Frpc__WebServerAddr=127.0.0.1
 Frpc__WebServerPort=7400
 ```
 
-If your Docker environment does not support `host.docker.internal`, set the host IP manually:
+If frpc runs on the Docker host or another machine, override the address for your environment. For example:
 
 ```bash
--e Frpc__WebServerAddr="192.168.1.10" \
+-e Frpc__WebServerAddr="host.docker.internal" \
 -e Frpc__WebServerPort="7400"
 ```
 
 You can also override the full frpc API URL:
 
 ```bash
--e Frpc__ApiBaseUrl="http://192.168.1.10:7400"
+-e Frpc__ApiBaseUrl="http://host.docker.internal:7400"
 ```
 
 ### Docker Compose

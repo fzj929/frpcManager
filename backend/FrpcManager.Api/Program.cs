@@ -226,12 +226,6 @@ static string GetFrpcApiBaseUrl(IConfiguration configuration)
     if (string.IsNullOrWhiteSpace(webServerAddr))
     {
         webServerAddr = "127.0.0.1";
-        //webServerAddr = string.Equals(
-        //    Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"),
-        //    "true",
-        //    StringComparison.OrdinalIgnoreCase)
-        //        ? "host.docker.internal"
-        //        : "127.0.0.1";
     }
 
     var webServerPort = configuration.GetValue("Frpc:WebServerPort", 7400);
