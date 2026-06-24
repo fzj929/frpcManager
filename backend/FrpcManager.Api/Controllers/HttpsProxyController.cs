@@ -206,6 +206,33 @@ public class HttpsProxyController : ControllerBase
         return Ok(ToResponse(rule, _userContext.UserId, _userContext.IsAdmin));
     }
 
+    [HttpPut("{id:int}/owner")]
+    [Authorize(Roles = UserRoles.Admin)]
+    public async Task<IActionResult> AssignOwner(int id, [FromBody] AssignHttpsProxyOwnerRequest request)
+    {
+        var rule = await _db.HttpsProxyRules
+            .Include(r => r.CreatedByUser)
+            .FirstOrDefaultAsync(r => r.Id == id);
+        if (rule == null)
+            return NotFound(new { message = "HTTPS 代理规则不存在" });
+
+        User? owner = null;
+        if (request.UserId.HasValue)
+        {
+            owner = await _db.Users.FindAsync(request.UserId.Value);
+            if (owner == null)
+                return BadRequest(new { message = "指定用户不存在" });
+        }
+
+        rule.CreatedByUserId = request.UserId;
+        rule.CreatedByUser = owner;
+        rule.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        await _auditLogService.LogAsync(HttpContext, "https-proxy.assign-owner", rule.Name, $"userId={request.UserId?.ToString() ?? "none"}");
+
+        return Ok(ToResponse(rule, _userContext.UserId, _userContext.IsAdmin));
+    }
+
     private async Task<BadRequestObjectResult?> ValidateRequestAsync(HttpsProxyRuleRequest request, int? currentId = null)
     {
         if (string.IsNullOrWhiteSpace(request.Name))

@@ -37,7 +37,8 @@ public record BackupHttpsProxyItem(
     string TargetUrl,
     string CertificateMode,
     string Description,
-    bool IsEnabled
+    bool IsEnabled,
+    string? CreatedByUsername
 );
 
 public record BackupWakeMacAddressItem(

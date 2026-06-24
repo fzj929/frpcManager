@@ -47,6 +47,7 @@ public class BackupService
             .ToListAsync();
 
         var httpsProxies = await _db.HttpsProxyRules
+            .Include(r => r.CreatedByUser)
             .OrderBy(r => r.Name)
             .Select(r => new BackupHttpsProxyItem(
                 r.Name,
@@ -54,7 +55,8 @@ public class BackupService
                 r.TargetUrl,
                 r.CertificateMode,
                 r.Description,
-                r.IsEnabled
+                r.IsEnabled,
+                r.CreatedByUser == null ? null : r.CreatedByUser.Username
             ))
             .ToListAsync();
 
@@ -214,6 +216,7 @@ public class BackupService
             rule.CertificatePassword = "";
             rule.Description = item.Description;
             rule.IsEnabled = item.IsEnabled && !usedUploadedCertificate;
+            rule.CreatedByUserId = ResolveUserId(usersByName, item.CreatedByUsername);
             rule.UpdatedAt = DateTime.UtcNow;
             restoredHttpsRules.Add(rule);
         }

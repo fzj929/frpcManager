@@ -98,5 +98,7 @@ export const createHttpsProxy = (data: FormData) =>
 export const updateHttpsProxy = (id: number, data: FormData) =>
   api.put(`/https-proxies/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
 export const deleteHttpsProxy = (id: number) => api.delete(`/https-proxies/${id}`)
+export const assignHttpsProxyOwner = (id: number, userId: number | null) =>
+  api.put(`/https-proxies/${id}/owner`, { userId })
 export const enableHttpsProxy = (id: number) => api.put(`/https-proxies/${id}/enable`)
 export const disableHttpsProxy = (id: number) => api.put(`/https-proxies/${id}/disable`)

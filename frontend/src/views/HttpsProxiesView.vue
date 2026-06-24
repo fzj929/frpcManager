@@ -26,7 +26,24 @@
         <el-table-column prop="targetUrl" label="目标 HTTP 地址" min-width="220" show-overflow-tooltip />
         <el-table-column label="创建者" width="110">
           <template #default="{ row }">
-            <span class="muted">{{ row.createdByUsername || '历史配置' }}</span>
+            <el-select
+              v-if="auth.isAdmin"
+              :model-value="row.createdByUserId"
+              :loading="ownerSavingId === row.id"
+              size="small"
+              clearable
+              placeholder="未分配"
+              style="width: 120px"
+              @change="(value: number | undefined) => handleOwnerChange(row, value ?? null)"
+            >
+              <el-option
+                v-for="user in ownerUsers"
+                :key="user.id"
+                :label="`${user.username}${user.isDisabled ? '（禁用）' : ''}`"
+                :value="user.id"
+              />
+            </el-select>
+            <span v-else class="muted">{{ row.createdByUsername || '历史配置' }}</span>
           </template>
         </el-table-column>
         <el-table-column label="证书" width="120">
@@ -161,21 +178,27 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules, type UploadFile } from 'element-plus'
 import { Delete, Edit, Plus, Upload } from '@element-plus/icons-vue'
 import {
+  assignHttpsProxyOwner,
   createHttpsProxy,
   deleteHttpsProxy,
   disableHttpsProxy,
   enableHttpsProxy,
   fetchHttpsProxies,
+  fetchUsers,
   updateHttpsProxy
 } from '@/api'
-import type { HttpsProxyRule } from '@/types'
+import type { HttpsProxyRule, UserAccount } from '@/types'
+import { useAuthStore } from '@/stores/auth'
 
 const hostName = window.location.hostname || 'localhost'
 const proxyRules = ref<HttpsProxyRule[]>([])
 const rules = proxyRules
+const auth = useAuthStore()
 const loading = ref(false)
 const saving = ref(false)
 const switchingId = ref<number | null>(null)
+const ownerSavingId = ref<number | null>(null)
+const ownerUsers = ref<UserAccount[]>([])
 const dialogVisible = ref(false)
 const editingId = ref<number | null>(null)
 const formRef = ref<FormInstance>()
@@ -349,7 +372,36 @@ async function removeRule(row: HttpsProxyRule) {
   await loadRules()
 }
 
-onMounted(loadRules)
+async function handleOwnerChange(row: HttpsProxyRule, userId: number | null) {
+  ownerSavingId.value = row.id
+  try {
+    const res = await assignHttpsProxyOwner(row.id, userId)
+    Object.assign(row, res.data)
+    ElMessage.success('HTTPS 代理归属已更新')
+  } catch (err: unknown) {
+    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '更新 HTTPS 代理归属失败'
+    ElMessage.error(msg)
+    await loadRules()
+  } finally {
+    ownerSavingId.value = null
+  }
+}
+
+async function loadOwnerUsers() {
+  if (!auth.isAdmin) return
+
+  try {
+    const res = await fetchUsers()
+    ownerUsers.value = res.data
+  } catch {
+    ElMessage.error('加载用户列表失败')
+  }
+}
+
+onMounted(() => {
+  loadRules()
+  loadOwnerUsers()
+})
 </script>
 
 <style scoped>

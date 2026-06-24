@@ -4,9 +4,9 @@ All notable changes to this project should be documented in this file.
 
 ## Unreleased
 
-- Added administrator tunnel ownership assignment from the tunnel list.
+- Added administrator ownership assignment for tunnels and HTTPS proxy rules from their list pages.
 - Added users to configuration backups without exporting passwords or password hashes.
-- Added tunnel owner usernames to backup proxy items and restores tunnel ownership by username when possible.
+- Added owner usernames to backup tunnel and HTTPS proxy items and restores ownership by username when possible.
 - Added administrator/user role control with a user management page for creating users, changing roles, disabling accounts, and resetting passwords.
 - Added resource ownership for frp tunnels and HTTPS proxy rules: all users can view resources, normal users can manage only their own resources, and administrators can manage all resources.
 - Restricted global operations such as frpc configuration, backup/restore, audit logs, and sync-from-frpc to administrators.

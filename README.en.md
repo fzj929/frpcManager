@@ -183,7 +183,7 @@ The first account created during setup is an administrator. Administrators can o
 
 Existing tunnels and HTTPS proxy rules created before this feature do not have an owner. They are shown as legacy configuration and can be managed by administrators only.
 
-Administrators can assign a tunnel to a user from the tunnel list. After assignment, that user can edit, delete, enable, or disable the tunnel.
+Administrators can assign a tunnel or HTTPS proxy rule to a user from the relevant list page. After assignment, that user can edit, delete, enable, or disable that resource.
 
 After upgrading from an older version, sign out and sign in again so the browser stores a JWT token with role claims.
 
@@ -258,7 +258,7 @@ The Settings page can export and restore configuration:
 - Restore: upload a backup JSON and merge it into existing configuration without deleting items that are not in the backup
 - Merge keys: tunnels match by `name + type`, HTTPS proxy rules match by listen port, MAC address records match by MAC address, and scheduled wake tasks match by `task name + MAC address`
 - User backups include username, role, and disabled state only. Passwords and password hashes are not exported. Newly restored users are created disabled and require an administrator password reset before use.
-- Tunnel backups include the owner username and restore ownership by username when the user exists in the target system.
+- Tunnel and HTTPS proxy backups include the owner username and restore ownership by username when the user exists in the target system.
 - frpc config from the backup is not applied by default, which avoids overwriting the current runtime config
 
 Restore actions are recorded in audit logs. Export a backup before large configuration changes.
@@ -366,6 +366,7 @@ Most endpoints require a JWT token, except setup status, first-run setup, and he
 | `DELETE` | `/api/https-proxies/{id}` | Delete an HTTPS proxy rule |
 | `PUT` | `/api/https-proxies/{id}/enable` | Enable an HTTPS proxy rule |
 | `PUT` | `/api/https-proxies/{id}/disable` | Disable an HTTPS proxy rule |
+| `PUT` | `/api/https-proxies/{id}/owner` | Assign or clear HTTPS proxy owner, administrator only |
 | `GET` | `/api/audit-logs` | List audit logs |
 | `GET` | `/api/backup` | Export tunnel and frpc config backup |
 | `POST` | `/api/backup/restore` | Restore configuration backup |

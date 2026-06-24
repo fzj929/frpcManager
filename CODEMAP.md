@@ -50,6 +50,7 @@ This file gives AI coding tools and maintainers a fast map of the FrpcManager co
   - Supports default site certificate, IIS `.pfx/.p12`, and Nginx-style `.pem/.crt/.cer + .key`.
   - Can optionally create a disabled frp TCP tunnel for a new HTTPS proxy.
   - All users can view HTTPS proxy rules. Normal users can manage only rules they created; administrators can manage all rules.
+  - Administrators can assign or clear HTTPS proxy rule ownership.
 
 - `Controllers/WakeOnLanController.cs`
   - Wake-on-LAN send, MAC address book, logs, schedules, wake again.
@@ -57,7 +58,7 @@ This file gives AI coding tools and maintainers a fast map of the FrpcManager co
 - `Controllers/BackupController.cs`
   - Export/restore frp tunnels, HTTPS proxy rules, and frpc config.
   - Does not export uploaded certificate files, private keys, certificate passwords, or user passwords.
-  - Exports user metadata and tunnel owner usernames, but not password hashes.
+  - Exports user metadata plus tunnel and HTTPS proxy owner usernames, but not password hashes.
   - Administrator-only.
 
 - `Controllers/AuditLogsController.cs`

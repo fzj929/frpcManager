@@ -28,3 +28,5 @@ public record HttpsProxyRuleRequest(
     bool CreateFrpChannel,
     string? FrpChannelName
 );
+
+public record AssignHttpsProxyOwnerRequest(int? UserId);

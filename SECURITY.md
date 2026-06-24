@@ -27,7 +27,7 @@ Do not include real passwords, JWT keys, database connection strings, frpc token
 - Change all example passwords before deployment.
 - Use administrator accounts only for trusted operators. Normal users can view all tunnels and HTTPS proxy rules, but can manage only resources they created.
 - Existing resources without an owner are treated as legacy resources and should be reviewed by an administrator after upgrade.
-- Configuration backups can include usernames, roles, disabled states, and tunnel owner usernames, but must not include user passwords or password hashes.
+- Configuration backups can include usernames, roles, disabled states, tunnel owner usernames, and HTTPS proxy owner usernames, but must not include user passwords or password hashes.
 - Sign out and sign in again after upgrading from a version without roles so the browser stores a token with role claims.
 - Persist `/app/data` with a Docker volume.
 - Keep the frpc Web API private and avoid exposing it directly to the internet.
