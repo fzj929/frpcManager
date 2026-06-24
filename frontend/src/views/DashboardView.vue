@@ -55,7 +55,7 @@
 
     <!-- Server Info + Active Proxies -->
     <el-row :gutter="20" style="margin-top: 20px">
-      <el-col :xs="24" :sm="12">
+      <el-col v-if="auth.isAdmin" :xs="24" :sm="12">
         <el-card class="info-card">
           <template #header>
             <div class="card-header">
@@ -86,7 +86,7 @@
         </el-card>
       </el-col>
 
-      <el-col :xs="24" :sm="12">
+      <el-col :xs="24" :sm="auth.isAdmin ? 12 : 24">
         <el-card class="info-card">
           <template #header>
             <div class="card-header">
@@ -124,9 +124,11 @@ import { ElMessage } from 'element-plus'
 import { Refresh, CircleCheck, Monitor, Cpu, Connection, DataAnalysis, CircleClose, WarningFilled } from '@element-plus/icons-vue'
 import { fetchProxies, fetchConfig } from '@/api'
 import type { Proxy, FrpcConfig } from '@/types'
+import { useAuthStore } from '@/stores/auth'
 
 const proxies = ref<Proxy[]>([])
 const config = ref<FrpcConfig | null>(null)
+const auth = useAuthStore()
 const refreshing = ref(false)
 
 const stats = computed(() => ({
@@ -141,9 +143,15 @@ const activeProxies = computed(() => proxies.value.filter(p => p.status === 'run
 async function loadData() {
   refreshing.value = true
   try {
-    const [proxyRes, configRes] = await Promise.allSettled([fetchProxies(), fetchConfig()])
-    if (proxyRes.status === 'fulfilled') proxies.value = proxyRes.value.data
-    if (configRes.status === 'fulfilled') config.value = configRes.value.data
+    const proxyRes = await fetchProxies()
+    proxies.value = proxyRes.data
+
+    if (auth.isAdmin) {
+      const configRes = await fetchConfig()
+      config.value = configRes.data
+    } else {
+      config.value = null
+    }
   } catch {
     ElMessage.error('加载数据失败')
   } finally {

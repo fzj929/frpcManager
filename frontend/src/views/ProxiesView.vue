@@ -84,7 +84,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="创建者" width="110">
+        <el-table-column label="创建者" width="180">
           <template #default="{ row }">
             <el-select
               v-if="auth.isAdmin"
@@ -93,7 +93,7 @@
               size="small"
               clearable
               placeholder="未分配"
-              style="width: 120px"
+              style="width: 100%"
               @change="(value: number | undefined) => handleOwnerChange(row, value ?? null)"
             >
               <el-option
