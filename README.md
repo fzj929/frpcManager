@@ -230,10 +230,9 @@ Docker 部署时，如果代理监听端口为 `8443`，需要额外映射端口
 ```bash
 docker run -d \
   --name frpc-manager \
-  -p 6887:6887 \
-  -p 6888:6888 \
-  -p 8443:8443 \
+  --network host \
   -v frpc-manager-data:/app/data \
+  -e ConnectionStrings__DefaultConnection="Data Source=/app/data/frpcmanager.db" \
   fengzhengjin/frpc-manager:latest
 ```
 
