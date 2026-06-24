@@ -14,7 +14,13 @@
     />
 
     <el-card class="table-card">
-      <el-table :data="rules" v-loading="loading" row-key="id" stripe>
+      <el-table
+        :data="rules"
+        v-loading="loading"
+        row-key="id"
+        stripe
+        :row-class-name="tableRowClassName"
+      >
         <el-table-column prop="name" label="名称" min-width="140" />
         <el-table-column label="访问地址" min-width="170">
           <template #default="{ row }">
@@ -53,21 +59,55 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column v-if="!auth.isAdmin" label="权限" width="90" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.canManage" type="success" size="small" effect="plain">可操作</el-tag>
+            <el-tooltip v-else content="只能查看，不能修改或删除其他用户的 HTTPS 代理" placement="top">
+              <el-tag type="info" size="small" effect="plain">只读</el-tag>
+            </el-tooltip>
+          </template>
+        </el-table-column>
         <el-table-column label="状态" width="90">
           <template #default="{ row }">
-            <el-switch
-              v-model="row.isEnabled"
-              :loading="switchingId === row.id"
-              :disabled="!row.canManage"
-              @change="toggleRule(row)"
-            />
+            <el-tooltip
+              :disabled="row.canManage"
+              content="只能查看，不能启停其他用户的 HTTPS 代理"
+              placement="top"
+            >
+              <span class="switch-wrap">
+                <el-switch
+                  v-model="row.isEnabled"
+                  :loading="switchingId === row.id"
+                  :disabled="!row.canManage"
+                  @change="toggleRule(row)"
+                />
+              </span>
+            </el-tooltip>
           </template>
         </el-table-column>
         <el-table-column prop="description" label="备注" min-width="160" show-overflow-tooltip />
         <el-table-column label="操作" width="170" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" :icon="Edit" :disabled="!row.canManage" @click="openDialog(row)">编辑</el-button>
-            <el-button size="small" type="danger" :icon="Delete" :disabled="!row.canManage" @click="removeRule(row)">删除</el-button>
+            <div class="row-actions">
+              <el-tooltip
+                :disabled="row.canManage"
+                content="只能查看，不能编辑其他用户的 HTTPS 代理"
+                placement="top"
+              >
+                <span>
+                  <el-button size="small" :icon="Edit" :disabled="!row.canManage" @click="openDialog(row)">编辑</el-button>
+                </span>
+              </el-tooltip>
+              <el-tooltip
+                :disabled="row.canManage"
+                content="只能查看，不能删除其他用户的 HTTPS 代理"
+                placement="top"
+              >
+                <span>
+                  <el-button size="small" type="danger" :icon="Delete" :disabled="!row.canManage" @click="removeRule(row)">删除</el-button>
+                </span>
+              </el-tooltip>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -255,6 +295,11 @@ const rulesDef: FormRules = {
   ]
 }
 
+function tableRowClassName({ row }: { row: HttpsProxyRule }) {
+  if (auth.isAdmin || row.canManage) return ''
+  return 'readonly-row'
+}
+
 async function loadRules() {
   loading.value = true
   try {
@@ -428,6 +473,28 @@ onMounted(() => {
 
 .table-card {
   border-radius: 8px;
+}
+
+.table-card :deep(.readonly-row) {
+  --el-table-tr-bg-color: #fafafa;
+  color: #909399;
+}
+
+.table-card :deep(.readonly-row td:last-child) {
+  background: #fafafa;
+}
+
+.row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.switch-wrap {
+  display: inline-flex;
+  align-items: center;
+  min-width: 40px;
+  justify-content: center;
 }
 
 .form-hint {

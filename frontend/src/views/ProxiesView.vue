@@ -32,6 +32,7 @@
         row-key="id"
         stripe
         highlight-current-row
+        :row-class-name="tableRowClassName"
       >
         <!-- Status dot -->
         <el-table-column label="状态" width="72" align="center">
@@ -107,6 +108,15 @@
           </template>
         </el-table-column>
 
+        <el-table-column v-if="!auth.isAdmin" label="权限" width="90" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.canManage" type="success" size="small" effect="plain">可操作</el-tag>
+            <el-tooltip v-else content="只能查看，不能修改或删除其他用户的通道" placement="top">
+              <el-tag type="info" size="small" effect="plain">只读</el-tag>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+
         <!-- Remote addr -->
         <el-table-column label="远程地址" min-width="180">
           <template #default="{ row }">
@@ -118,12 +128,20 @@
         <!-- Enable toggle -->
         <el-table-column label="启用" width="90" align="center">
           <template #default="{ row }">
-            <el-switch
-              :model-value="row.isEnabled"
-              :loading="togglingId === row.id"
-              :disabled="!row.canManage"
-              @change="(val: boolean) => onToggle(row, val)"
-            />
+            <el-tooltip
+              :disabled="row.canManage"
+              content="只能查看，不能启停其他用户的通道"
+              placement="top"
+            >
+              <span class="switch-wrap">
+                <el-switch
+                  :model-value="row.isEnabled"
+                  :loading="togglingId === row.id"
+                  :disabled="!row.canManage"
+                  @change="(val: boolean) => onToggle(row, val)"
+                />
+              </span>
+            </el-tooltip>
           </template>
         </el-table-column>
 
@@ -131,24 +149,40 @@
         <el-table-column label="操作" width="100" align="center" fixed="right">
           <template #default="{ row }">
             <div class="row-actions">
-              <el-button
-                class="action-btn"
-                text
-                type="primary"
-                size="small"
-                :icon="Edit"
-                :disabled="!row.canManage"
-                @click="openEditDialog(row)"
-              />
-              <el-button
-                class="action-btn"
-                text
-                type="danger"
-                size="small"
-                :icon="Delete"
-                :disabled="!row.canManage"
-                @click="handleDelete(row)"
-              />
+              <el-tooltip
+                :disabled="row.canManage"
+                content="只能查看，不能编辑其他用户的通道"
+                placement="top"
+              >
+                <span>
+                  <el-button
+                    class="action-btn"
+                    text
+                    type="primary"
+                    size="small"
+                    :icon="Edit"
+                    :disabled="!row.canManage"
+                    @click="openEditDialog(row)"
+                  />
+                </span>
+              </el-tooltip>
+              <el-tooltip
+                :disabled="row.canManage"
+                content="只能查看，不能删除其他用户的通道"
+                placement="top"
+              >
+                <span>
+                  <el-button
+                    class="action-btn"
+                    text
+                    type="danger"
+                    size="small"
+                    :icon="Delete"
+                    :disabled="!row.canManage"
+                    @click="handleDelete(row)"
+                  />
+                </span>
+              </el-tooltip>
             </div>
           </template>
         </el-table-column>
@@ -219,6 +253,11 @@ const filteredProxies = computed(() => {
 })
 
 const activeCount = computed(() => proxies.value.filter(p => p.status === 'running').length)
+
+function tableRowClassName({ row }: { row: Proxy }) {
+  if (auth.isAdmin || row.canManage) return ''
+  return 'readonly-row'
+}
 
 function statusText(status: string): string {
   const map: Record<string, string> = { running: '运行中', disabled: '已停用', error: '错误', unknown: '未知' }
@@ -421,6 +460,20 @@ onUnmounted(() => {
 
 .table-card { border-radius: 12px; }
 
+.table-card :deep(.readonly-row) {
+  --el-table-tr-bg-color: #fafafa;
+  color: #909399;
+}
+
+.table-card :deep(.readonly-row .proxy-name),
+.table-card :deep(.readonly-row .addr-text) {
+  color: #606266;
+}
+
+.table-card :deep(.readonly-row td:last-child) {
+  background: #fafafa;
+}
+
 .status-dot {
   display: inline-block;
   width: 10px;
@@ -482,6 +535,13 @@ onUnmounted(() => {
   width: 28px;
   height: 28px;
   padding: 0;
+}
+
+.switch-wrap {
+  display: inline-flex;
+  align-items: center;
+  min-width: 40px;
+  justify-content: center;
 }
 
 .table-footer {
