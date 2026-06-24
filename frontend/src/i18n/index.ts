@@ -359,8 +359,7 @@ const enText: Record<string, string> = {
 
 const textOriginals = new WeakMap<Text, string>()
 const attrOriginals = new WeakMap<Element, Map<string, string>>()
-let observer: MutationObserver | null = null
-let applying = false
+let pendingTranslate = 0
 
 export function translateValue(value: string) {
   if (language.value === 'zh') return value
@@ -454,38 +453,8 @@ function walk(root: Node) {
 
 export async function applyPageTranslations() {
   await nextTick()
-  window.setTimeout(() => {
-    applying = true
+  window.clearTimeout(pendingTranslate)
+  pendingTranslate = window.setTimeout(() => {
     walk(document.body)
-    applying = false
-  })
-}
-
-export function startTranslationObserver() {
-  if (observer) return
-
-  observer = new MutationObserver((mutations) => {
-    if (applying) return
-
-    applying = true
-    for (const mutation of mutations) {
-      for (const node of Array.from(mutation.addedNodes))
-        walk(node)
-
-      if (mutation.type === 'characterData')
-        walk(mutation.target)
-
-      if (mutation.type === 'attributes')
-        walk(mutation.target)
-    }
-    applying = false
-  })
-
-  observer.observe(document.body, {
-    subtree: true,
-    childList: true,
-    characterData: true,
-    attributes: true,
-    attributeFilter: ['placeholder', 'title', 'aria-label']
   })
 }

@@ -30,13 +30,11 @@ import {
   elementLocale,
   language,
   setLanguage,
-  startTranslationObserver,
 } from '@/i18n'
 
 const route = useRoute()
 
 onMounted(() => {
-  startTranslationObserver()
   applyPageTranslations()
 })
 
