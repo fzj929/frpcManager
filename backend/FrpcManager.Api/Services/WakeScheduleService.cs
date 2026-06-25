@@ -62,49 +62,66 @@ public class WakeScheduleService : BackgroundService
             if (schedule.LastRunAt.HasValue && schedule.LastRunAt.Value.ToLocalTime().Date == today)
                 continue;
 
-            var success = true;
-            var message = "定时唤醒包已发送";
-            var macAddress = WakeOnLanService.NormalizeMacAddress(schedule.MacAddress);
             try
             {
-                await wakeOnLan.SendMagicPacketAsync(macAddress, schedule.BroadcastAddress, schedule.Port);
+                await RunScheduleAsync(db, wakeOnLan, schedule, now, stoppingToken);
             }
             catch (Exception ex)
             {
-                success = false;
-                message = ex.Message;
+                _logger.LogError(ex, "定时唤醒任务 {ScheduleId} 执行失败", schedule.Id);
             }
+        }
+    }
 
-            schedule.LastRunAt = now;
-            schedule.UpdatedAt = now;
-            schedule.MacAddress = macAddress;
-            if (schedule.ScheduleMode == "date")
-                schedule.IsEnabled = false;
+    private static async Task RunScheduleAsync(
+        AppDbContext db,
+        WakeOnLanService wakeOnLan,
+        WakeSchedule schedule,
+        DateTime now,
+        CancellationToken stoppingToken)
+    {
+        var success = true;
+        var message = "定时唤醒包已发送";
+        var macAddress = WakeOnLanService.NormalizeMacAddress(schedule.MacAddress);
+        try
+        {
+            await wakeOnLan.SendMagicPacketAsync(macAddress, schedule.BroadcastAddress, schedule.Port);
+        }
+        catch (Exception ex)
+        {
+            success = false;
+            message = ex.Message;
+        }
 
-            if (!db.WakeMacAddresses.Local.Any(m => m.MacAddress == macAddress) &&
-                !await db.WakeMacAddresses.AnyAsync(m => m.MacAddress == macAddress, stoppingToken))
-            {
-                db.WakeMacAddresses.Add(new WakeMacAddress
-                {
-                    MacAddress = macAddress,
-                    Name = macAddress,
-                    CreatedAt = now
-                });
-            }
+        schedule.LastRunAt = now;
+        schedule.UpdatedAt = now;
+        schedule.MacAddress = macAddress;
+        if (schedule.ScheduleMode == "date")
+            schedule.IsEnabled = false;
 
-            db.WakeLogs.Add(new WakeLog
+        if (!db.WakeMacAddresses.Local.Any(m => m.MacAddress == macAddress) &&
+            !await db.WakeMacAddresses.AnyAsync(m => m.MacAddress == macAddress, stoppingToken))
+        {
+            db.WakeMacAddresses.Add(new WakeMacAddress
             {
                 MacAddress = macAddress,
-                BroadcastAddress = schedule.BroadcastAddress,
-                Port = schedule.Port,
-                Source = "schedule",
-                Username = "system",
-                IpAddress = "",
-                Success = success,
-                Message = message,
+                Name = macAddress,
                 CreatedAt = now
             });
         }
+
+        db.WakeLogs.Add(new WakeLog
+        {
+            MacAddress = macAddress,
+            BroadcastAddress = schedule.BroadcastAddress,
+            Port = schedule.Port,
+            Source = "schedule",
+            Username = "system",
+            IpAddress = "",
+            Success = success,
+            Message = message,
+            CreatedAt = now
+        });
 
         await db.SaveChangesAsync(stoppingToken);
     }

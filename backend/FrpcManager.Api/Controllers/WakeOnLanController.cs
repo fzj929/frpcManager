@@ -30,6 +30,11 @@ public class WakeOnLanController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Wake([FromBody] WakeOnLanRequest? request)
     {
+        return await WakeCore(request, "manual");
+    }
+
+    private async Task<IActionResult> WakeCore(WakeOnLanRequest? request, string source)
+    {
         if (request == null || string.IsNullOrWhiteSpace(request.MacAddress))
             return BadRequest(new { message = "请输入 MAC 地址" });
 
@@ -52,7 +57,7 @@ public class WakeOnLanController : ControllerBase
         {
             await EnsureMacAddressAsync(macAddress);
             await _wakeOnLanService.SendMagicPacketAsync(macAddress, broadcastAddress, port);
-            await AddWakeLogAsync(macAddress, broadcastAddress, port, "manual", true, "魔术数据包已发送");
+            await AddWakeLogAsync(macAddress, broadcastAddress, port, source, true, "魔术数据包已发送");
             await _auditLogService.LogAsync(HttpContext, "wake-on-lan.send", macAddress, $"{broadcastAddress}:{port}");
             return Ok(new WakeOnLanResponse(
                 macAddress,
@@ -63,12 +68,12 @@ public class WakeOnLanController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            await AddWakeLogAsync(macAddress, broadcastAddress, port, "manual", false, ex.Message);
+            await AddWakeLogAsync(macAddress, broadcastAddress, port, source, false, ex.Message);
             return BadRequest(new { message = ex.Message });
         }
         catch (SocketException ex)
         {
-            await AddWakeLogAsync(macAddress, broadcastAddress, port, "manual", false, ex.Message);
+            await AddWakeLogAsync(macAddress, broadcastAddress, port, source, false, ex.Message);
             return StatusCode(500, new { message = $"发送魔术数据包失败：{ex.Message}" });
         }
     }
@@ -260,7 +265,7 @@ public class WakeOnLanController : ControllerBase
         if (schedule == null)
             return NotFound(new { message = "定时任务不存在" });
 
-        return await Wake(new WakeOnLanRequest(schedule.MacAddress, schedule.BroadcastAddress, schedule.Port));
+        return await WakeCore(new WakeOnLanRequest(schedule.MacAddress, schedule.BroadcastAddress, schedule.Port), "schedule");
     }
 
     private async Task AddWakeLogAsync(string macAddress, string broadcastAddress, int port, string source, bool success, string message)
