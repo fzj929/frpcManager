@@ -33,13 +33,10 @@ import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { fetchAuditLogs } from '@/api'
 import type { AuditLog } from '@/types'
+import { formatDateTime as formatTime } from '@/utils/date'
 
 const logs = ref<AuditLog[]>([])
 const loading = ref(false)
-
-function formatTime(value: string) {
-  return new Date(value).toLocaleString()
-}
 
 async function loadLogs() {
   loading.value = true

@@ -81,6 +81,7 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Edit, Key, Plus } from '@element-plus/icons-vue'
 import { createUser, fetchUsers, resetUserPassword, updateUser } from '@/api'
 import type { UserAccount } from '@/types'
+import { formatDateTime as formatTime } from '@/utils/date'
 
 const users = ref<UserAccount[]>([])
 const loading = ref(false)
@@ -205,10 +206,6 @@ async function resetPassword() {
 
 function roleLabel(role: string) {
   return role === 'admin' ? '管理员' : '普通用户'
-}
-
-function formatTime(value: string) {
-  return new Date(value).toLocaleString()
 }
 
 onMounted(loadUsers)

@@ -37,7 +37,7 @@
         </el-table-column>
         <el-table-column label="上次执行" min-width="170">
           <template #default="{ row }">
-            {{ row.lastRunAt ? new Date(row.lastRunAt).toLocaleString() : '-' }}
+            {{ formatDateTime(row.lastRunAt) }}
           </template>
         </el-table-column>
         <el-table-column label="操作" width="260" fixed="right">
@@ -63,7 +63,7 @@
       <el-table :data="logs" v-loading="logLoading" row-key="id" stripe>
         <el-table-column label="时间" min-width="170">
           <template #default="{ row }">
-            {{ new Date(row.createdAt).toLocaleString() }}
+            {{ formatDateTime(row.createdAt) }}
           </template>
         </el-table-column>
         <el-table-column prop="macName" label="主机名称" min-width="140" show-overflow-tooltip />
@@ -183,6 +183,7 @@ import {
   wakeFromSchedule
 } from '@/api'
 import type { WakeLog, WakeMacAddress, WakeSchedule } from '@/types'
+import { formatDateTime } from '@/utils/date'
 
 const logs = ref<WakeLog[]>([])
 const schedules = ref<WakeSchedule[]>([])

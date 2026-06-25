@@ -19,12 +19,12 @@
         <el-table-column prop="macAddress" label="MAC 地址" min-width="170" />
         <el-table-column label="创建时间" min-width="170">
           <template #default="{ row }">
-            {{ new Date(row.createdAt).toLocaleString() }}
+            {{ formatDateTime(row.createdAt) }}
           </template>
         </el-table-column>
         <el-table-column label="更新时间" min-width="170">
           <template #default="{ row }">
-            {{ row.updatedAt ? new Date(row.updatedAt).toLocaleString() : '-' }}
+            {{ formatDateTime(row.updatedAt) }}
           </template>
         </el-table-column>
         <el-table-column label="操作" width="260" fixed="right">
@@ -70,6 +70,7 @@ import {
   wakeOnLan
 } from '@/api'
 import type { WakeMacAddress } from '@/types'
+import { formatDateTime } from '@/utils/date'
 
 const items = ref<WakeMacAddress[]>([])
 const loading = ref(false)
