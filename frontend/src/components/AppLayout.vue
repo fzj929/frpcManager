@@ -107,6 +107,88 @@
         </router-view>
       </el-main>
     </el-container>
+
+    <nav class="mobile-tabbar" aria-label="移动端主导航">
+      <button
+        type="button"
+        :class="['mobile-tabbar-item', route.path === '/dashboard' ? 'active' : '']"
+        @click="navigateTo('/dashboard')"
+      >
+        <el-icon><DataBoard /></el-icon>
+        <span>仪表盘</span>
+      </button>
+      <button
+        type="button"
+        :class="['mobile-tabbar-item', route.path === '/proxies' ? 'active' : '']"
+        @click="navigateTo('/proxies')"
+      >
+        <el-icon><Connection /></el-icon>
+        <span>通道</span>
+      </button>
+      <button
+        type="button"
+        :class="['mobile-tabbar-item', isWakeActive ? 'active' : '']"
+        @click="mobileWakeSheetVisible = true"
+      >
+        <el-icon><Monitor /></el-icon>
+        <span>唤醒</span>
+      </button>
+      <button
+        type="button"
+        :class="['mobile-tabbar-item', route.path === '/https-proxies' ? 'active' : '']"
+        @click="navigateTo('/https-proxies')"
+      >
+        <el-icon><Lock /></el-icon>
+        <span>HTTPS</span>
+      </button>
+      <button
+        type="button"
+        :class="['mobile-tabbar-item', route.path === '/settings' ? 'active' : '']"
+        @click="navigateTo('/settings')"
+      >
+        <el-icon><Setting /></el-icon>
+        <span>设置</span>
+      </button>
+    </nav>
+
+    <el-drawer
+      v-model="mobileWakeSheetVisible"
+      direction="btt"
+      size="auto"
+      :with-header="false"
+      class="mobile-action-drawer"
+    >
+      <div class="mobile-sheet">
+        <div class="mobile-sheet-handle"></div>
+        <div class="mobile-sheet-title">主机唤醒</div>
+        <div class="mobile-sheet-grid">
+          <button
+            type="button"
+            :class="['mobile-sheet-action', route.path === '/wake' ? 'active' : '']"
+            @click="navigateTo('/wake')"
+          >
+            <el-icon><SwitchButton /></el-icon>
+            <span>唤醒主机</span>
+          </button>
+          <button
+            type="button"
+            :class="['mobile-sheet-action', route.path === '/wake-mac-addresses' ? 'active' : '']"
+            @click="navigateTo('/wake-mac-addresses')"
+          >
+            <el-icon><Monitor /></el-icon>
+            <span>MAC 地址</span>
+          </button>
+          <button
+            type="button"
+            :class="['mobile-sheet-action', route.path === '/wake-records' ? 'active' : '']"
+            @click="navigateTo('/wake-records')"
+          >
+            <el-icon><Timer /></el-icon>
+            <span>唤醒记录</span>
+          </button>
+        </div>
+      </div>
+    </el-drawer>
   </el-container>
 </template>
 
@@ -120,8 +202,10 @@ const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 const isCollapsed = ref(false)
+const mobileWakeSheetVisible = ref(false)
 
 const activeMenu = computed(() => route.path)
+const isWakeActive = computed(() => route.path.startsWith('/wake'))
 
 const pageTitles: Record<string, string> = {
   '/dashboard': '仪表板',
@@ -136,6 +220,13 @@ const pageTitles: Record<string, string> = {
 }
 
 const currentPageTitle = computed(() => pageTitles[route.path] ?? '')
+
+function navigateTo(path: string) {
+  mobileWakeSheetVisible.value = false
+  if (route.path !== path) {
+    router.push(path)
+  }
+}
 
 async function handleCommand(cmd: string) {
   if (cmd === 'logout') {
@@ -240,6 +331,17 @@ async function handleCommand(cmd: string) {
   padding: 24px;
 }
 
+.mobile-tabbar {
+  display: none;
+}
+
+.mobile-tabbar-item,
+.mobile-sheet-action {
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
 @media (max-width: 768px) {
   .layout-wrapper {
     display: block;
@@ -247,55 +349,57 @@ async function handleCommand(cmd: string) {
   }
 
   .sidebar {
+    display: none;
+  }
+
+  .mobile-tabbar {
+    display: flex;
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
-    width: 100% !important;
-    height: 64px;
     z-index: 1000;
-    border-top: 1px solid #2a2a3e;
-  }
-
-  .sidebar-logo,
-  .sidebar-footer {
-    display: none;
-  }
-
-  .sidebar-menu {
-    display: flex;
+    height: calc(64px + env(safe-area-inset-bottom));
     width: 100%;
-    height: 64px;
-    overflow-x: auto;
-    overflow-y: hidden;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    gap: 4px;
+    background: #1e1e2e;
+    border-top: 1px solid #2a2a3e;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.16);
   }
 
-  .sidebar-menu :deep(.el-menu-item) {
-    flex: 1 0 76px;
-    min-width: 76px;
-    height: 64px;
-    line-height: 1.2;
-    padding: 8px 6px !important;
+  .mobile-tabbar-item {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
+    align-items: center;
     justify-content: center;
     gap: 4px;
+    min-height: 52px;
+    padding: 6px 2px;
+    color: #a0a0b0;
+    background: transparent;
+    border-radius: 10px;
+    transition: background 0.2s, color 0.2s;
   }
 
-  .sidebar-menu :deep(.el-menu-item .el-icon) {
-    margin-right: 0;
+  .mobile-tabbar-item .el-icon {
     font-size: 18px;
   }
 
-  .sidebar-menu :deep(.el-menu-item .el-menu-tooltip__trigger) {
-    position: static;
+  .mobile-tabbar-item span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    line-height: 1.1;
   }
 
-  .sidebar-menu :deep(.el-menu-item .el-tooltip__trigger),
-  .sidebar-menu :deep(.el-menu-item span) {
-    font-size: 12px;
-    line-height: 1.2;
-    white-space: nowrap;
+  .mobile-tabbar-item.active {
+    color: #409EFF;
+    background: rgba(64, 158, 255, 0.14);
   }
 
   .header {
@@ -322,8 +426,67 @@ async function handleCommand(cmd: string) {
   .main-content {
     height: calc(100dvh - 48px);
     padding: 12px;
-    padding-bottom: 82px;
+    padding-bottom: calc(82px + env(safe-area-inset-bottom));
   }
+}
+
+.mobile-sheet {
+  padding: 10px 14px calc(18px + env(safe-area-inset-bottom));
+}
+
+.mobile-sheet-handle {
+  width: 36px;
+  height: 4px;
+  margin: 0 auto 12px;
+  border-radius: 999px;
+  background: #dcdfe6;
+}
+
+.mobile-sheet-title {
+  margin-bottom: 14px;
+  font-size: 17px;
+  font-weight: 600;
+  color: #303133;
+  text-align: center;
+}
+
+.mobile-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mobile-sheet-action {
+  display: flex;
+  min-height: 82px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 6px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  color: #606266;
+  background: #fff;
+}
+
+.mobile-sheet-action .el-icon {
+  font-size: 22px;
+  color: #409EFF;
+}
+
+.mobile-sheet-action span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.mobile-sheet-action.active {
+  border-color: #409EFF;
+  color: #409EFF;
+  background: #ecf5ff;
 }
 
 .fade-enter-active,
