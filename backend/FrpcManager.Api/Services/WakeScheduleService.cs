@@ -6,13 +6,20 @@ namespace FrpcManager.Api.Services;
 
 public class WakeScheduleService : BackgroundService
 {
+    private const string DefaultTimeZoneId = "Asia/Shanghai";
+
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<WakeScheduleService> _logger;
+    private readonly TimeZoneInfo _timeZone;
 
-    public WakeScheduleService(IServiceScopeFactory scopeFactory, ILogger<WakeScheduleService> logger)
+    public WakeScheduleService(
+        IServiceScopeFactory scopeFactory,
+        ILogger<WakeScheduleService> logger,
+        IConfiguration configuration)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _timeZone = ResolveTimeZone(configuration["WakeSchedule:TimeZoneId"]);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -40,8 +47,8 @@ public class WakeScheduleService : BackgroundService
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var wakeOnLan = scope.ServiceProvider.GetRequiredService<WakeOnLanService>();
         var now = DateTime.UtcNow;
-        var localNow = DateTime.Now;
-        var today = localNow.Date;
+        var scheduleNow = TimeZoneInfo.ConvertTimeFromUtc(now, _timeZone);
+        var today = scheduleNow.Date;
 
         var schedules = await db.WakeSchedules
             .Where(s => s.IsEnabled)
@@ -56,10 +63,10 @@ public class WakeScheduleService : BackgroundService
                 continue;
 
             var runAtToday = today.Add(timeOnly.ToTimeSpan());
-            if (localNow < runAtToday || localNow >= runAtToday.AddSeconds(60))
+            if (scheduleNow < runAtToday || scheduleNow >= runAtToday.AddSeconds(60))
                 continue;
 
-            if (schedule.LastRunAt.HasValue && schedule.LastRunAt.Value.ToLocalTime().Date == today)
+            if (HasRunToday(schedule.LastRunAt, today, _timeZone))
                 continue;
 
             try
@@ -145,5 +152,46 @@ public class WakeScheduleService : BackgroundService
         return daysOfWeek
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Contains(today);
+    }
+
+    private static bool HasRunToday(DateTime? lastRunAt, DateTime today, TimeZoneInfo timeZone)
+    {
+        if (!lastRunAt.HasValue)
+            return false;
+
+        var lastRunUtc = lastRunAt.Value.Kind == DateTimeKind.Utc
+            ? lastRunAt.Value
+            : DateTime.SpecifyKind(lastRunAt.Value, DateTimeKind.Utc);
+        return TimeZoneInfo.ConvertTimeFromUtc(lastRunUtc, timeZone).Date == today;
+    }
+
+    private TimeZoneInfo ResolveTimeZone(string? configuredTimeZoneId)
+    {
+        var candidates = new[]
+            {
+                configuredTimeZoneId,
+                DefaultTimeZoneId,
+                "China Standard Time"
+            }
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var candidate in candidates)
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(candidate);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+            }
+            catch (InvalidTimeZoneException)
+            {
+            }
+        }
+
+        _logger.LogWarning("Wake schedule time zone '{TimeZoneId}' is unavailable. Falling back to local server time zone '{LocalTimeZoneId}'.", configuredTimeZoneId, TimeZoneInfo.Local.Id);
+        return TimeZoneInfo.Local;
     }
 }
