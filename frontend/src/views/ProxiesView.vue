@@ -241,6 +241,7 @@ const timedTarget = ref<Proxy | null>(null)
 // Countdown ticker
 const tick = ref(0)
 let ticker: ReturnType<typeof setInterval> | null = null
+let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 const filteredProxies = computed(() => {
   return proxies.value.filter(p => {
@@ -409,11 +410,15 @@ function handleSaved() {
 }
 
 async function loadProxies() {
+  if (!auth.isLoggedIn) return
+
   loading.value = true
   try {
     const res = await fetchProxies()
     proxies.value = res.data
-  } catch {
+  } catch (err: unknown) {
+    const status = (err as { response?: { status?: number } })?.response?.status
+    if (status === 401 || !auth.isLoggedIn) return
     ElMessage.error('加载通道列表失败')
   } finally {
     loading.value = false
@@ -426,11 +431,12 @@ onMounted(() => {
   // Update countdown every second
   ticker = setInterval(() => { tick.value++ }, 1000)
   // Auto-refresh list every 30s to pick up server-side expiry
-  setInterval(loadProxies, 30000)
+  refreshTimer = setInterval(loadProxies, 30000)
 })
 
 onUnmounted(() => {
   if (ticker) clearInterval(ticker)
+  if (refreshTimer) clearInterval(refreshTimer)
 })
 </script>
 
