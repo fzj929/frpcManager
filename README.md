@@ -225,7 +225,7 @@ HTTPS 代理页面可将一个内网 HTTP 服务包装成 HTTPS 访问：
 | IIS证书 | Windows IIS 导出的证书 | `.pfx` 或 `.p12`，可填写证书密码 |
 | Nginx证书 | Nginx、Caddy、Let's Encrypt 常见证书 | 证书文件 `.pem/.crt/.cer` + 私钥文件 `.key` |
 
-Docker 部署时，如果代理监听端口为 `8443`，需要额外映射端口：
+Docker 部署时，如果代理监听端口为 `6888`，需要额外映射端口：
 
 ```bash
 docker run -d \
@@ -235,6 +235,8 @@ docker run -d \
   -e ConnectionStrings__DefaultConnection="Data Source=/app/data/frpcmanager.db" \
   fengzhengjin/frpc-manager:latest
 ```
+http端口：6887
+https端口：6888
 
 ### 配置备份 / 恢复
 
