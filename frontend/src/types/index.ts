@@ -56,6 +56,19 @@ export interface WakeOnLanResponse {
   message: string
 }
 
+export interface WakePingRequest {
+  host: string
+  timeoutMs: number
+}
+
+export interface WakePingResponse {
+  host: string
+  isOnline: boolean
+  roundtripTimeMs: number | null
+  status: string
+  message: string
+}
+
 export interface WakeLog {
   id: number
   macAddress: string
@@ -126,8 +139,23 @@ export interface HttpsProxyRule {
   createdByUserId: number | null
   createdByUsername: string
   canManage: boolean
+  certificateInfo: HttpsProxyCertificateInfo | null
   createdAt: string
   updatedAt: string | null
+}
+
+export interface HttpsProxyCertificateInfo {
+  subject: string
+  issuer: string
+  notBefore: string
+  notAfter: string
+  daysRemaining: number
+  isExpired: boolean
+  isExpiringSoon: boolean
+  matchesHost: boolean
+  host: string
+  domains: string[]
+  error: string | null
 }
 
 export interface UserAccount {

@@ -59,6 +59,41 @@
             </el-form-item>
           </el-form>
         </el-card>
+
+        <el-card class="wake-card ping-card">
+          <template #header>
+            <div class="card-header">
+              <el-icon><Monitor /></el-icon>
+              <span>手动 Ping 测试</span>
+            </div>
+          </template>
+
+          <el-form
+            ref="pingFormRef"
+            :model="pingForm"
+            :rules="pingRules"
+            label-width="120px"
+            @submit.prevent
+          >
+            <el-form-item label="目标主机" prop="host">
+              <el-input v-model.trim="pingForm.host" placeholder="例如：192.168.1.10 或 nas.local" />
+              <div class="form-hint">用于测试主机是否已经启动，需要目标主机允许 ICMP Ping。</div>
+            </el-form-item>
+
+            <el-form-item label="超时" prop="timeoutMs">
+              <el-input-number v-model="pingForm.timeoutMs" :min="1000" :max="10000" :step="1000" style="width: 100%" />
+            </el-form-item>
+
+            <el-form-item>
+              <el-button type="primary" :loading="pinging" :icon="Monitor" @click="pingHost">
+                测试主机
+              </el-button>
+              <el-tag v-if="pingResult" :type="pingResult.isOnline ? 'success' : 'warning'" effect="plain">
+                {{ pingResult.message }}
+              </el-tag>
+            </el-form-item>
+          </el-form>
+        </el-card>
       </el-col>
 
       <el-col :xs="24" :lg="10">
@@ -94,17 +129,25 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { InfoFilled, Monitor, SwitchButton } from '@element-plus/icons-vue'
-import { fetchWakeMacAddresses, wakeOnLan } from '@/api'
-import type { WakeMacAddress, WakeOnLanRequest } from '@/types'
+import { fetchWakeMacAddresses, pingWakeHost, wakeOnLan } from '@/api'
+import type { WakeMacAddress, WakeOnLanRequest, WakePingRequest, WakePingResponse } from '@/types'
 
 const formRef = ref<FormInstance>()
+const pingFormRef = ref<FormInstance>()
 const sending = ref(false)
+const pinging = ref(false)
 const macAddresses = ref<WakeMacAddress[]>([])
+const pingResult = ref<WakePingResponse | null>(null)
 
 const form = reactive<WakeOnLanRequest>({
   macAddress: '',
   broadcastAddress: '255.255.255.255',
   port: 9
+})
+
+const pingForm = reactive<WakePingRequest>({
+  host: '',
+  timeoutMs: 3000
 })
 
 const macPattern = /^([0-9a-fA-F]{2}[:-]?){5}[0-9a-fA-F]{2}$|^[0-9a-fA-F]{12}$|^[0-9a-fA-F]{4}\.[0-9a-fA-F]{4}\.[0-9a-fA-F]{4}$/
@@ -120,6 +163,20 @@ const rules: FormRules = {
   ],
   broadcastAddress: [{ required: true, message: '请输入广播地址', trigger: 'blur' }],
   port: [{ required: true, type: 'number', message: '请输入端口', trigger: 'blur' }]
+}
+
+const pingRules: FormRules = {
+  host: [
+    { required: true, message: '请输入要测试的 IP 或域名', trigger: 'blur' },
+    {
+      validator: (_rule, value, callback) => {
+        if (!/^[a-zA-Z0-9.-]+$/.test(value)) callback(new Error('只能填写 IP 或域名'))
+        else callback()
+      },
+      trigger: 'blur'
+    }
+  ],
+  timeoutMs: [{ required: true, type: 'number', message: '请输入超时时间', trigger: 'blur' }]
 }
 
 async function sendWakePacket() {
@@ -144,6 +201,25 @@ function resetForm() {
   form.broadcastAddress = '255.255.255.255'
   form.port = 9
   formRef.value?.clearValidate()
+}
+
+async function pingHost() {
+  if (!await pingFormRef.value?.validate().catch(() => false)) return
+
+  pinging.value = true
+  pingResult.value = null
+  try {
+    const res = await pingWakeHost(pingForm)
+    pingResult.value = res.data
+    if (res.data.isOnline) ElMessage.success(res.data.message)
+    else ElMessage.warning(res.data.message)
+  } catch (err: unknown) {
+    const msg = (err as { response?: { data?: { message?: string } } })
+      ?.response?.data?.message ?? 'Ping 测试失败'
+    ElMessage.error(msg)
+  } finally {
+    pinging.value = false
+  }
 }
 
 async function loadMacAddresses() {
@@ -179,6 +255,10 @@ onMounted(loadMacAddresses)
 
 .wake-card {
   border-radius: 8px;
+}
+
+.ping-card {
+  margin-top: 16px;
 }
 
 .card-header {

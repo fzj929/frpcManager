@@ -13,8 +13,23 @@ public record HttpsProxyRuleResponse(
     int? CreatedByUserId,
     string CreatedByUsername,
     bool CanManage,
+    HttpsProxyCertificateInfo? CertificateInfo,
     DateTime CreatedAt,
     DateTime? UpdatedAt
+);
+
+public record HttpsProxyCertificateInfo(
+    string Subject,
+    string Issuer,
+    DateTime NotBefore,
+    DateTime NotAfter,
+    int DaysRemaining,
+    bool IsExpired,
+    bool IsExpiringSoon,
+    bool MatchesHost,
+    string Host,
+    List<string> Domains,
+    string? Error
 );
 
 public record HttpsProxyRuleRequest(

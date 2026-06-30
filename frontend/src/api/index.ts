@@ -71,6 +71,7 @@ export const reloadFrpc = () => api.post('/config/reload')
 
 // Wake-on-LAN
 export const wakeOnLan = (data: object) => api.post('/wake-on-lan', data)
+export const pingWakeHost = (data: object) => api.post('/wake-on-lan/ping', data)
 export const fetchWakeMacAddresses = () => api.get('/wake-on-lan/mac-addresses')
 export const createWakeMacAddress = (data: object) => api.post('/wake-on-lan/mac-addresses', data)
 export const updateWakeMacAddress = (id: number, data: object) => api.put(`/wake-on-lan/mac-addresses/${id}`, data)

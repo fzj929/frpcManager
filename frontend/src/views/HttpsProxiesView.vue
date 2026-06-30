@@ -59,6 +59,33 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="证书状态" min-width="220">
+          <template #default="{ row }">
+            <div v-if="row.certificateInfo" class="cert-status">
+              <el-tooltip
+                v-if="row.certificateInfo.error"
+                :content="row.certificateInfo.error"
+                placement="top"
+              >
+                <el-tag type="danger" size="small" effect="plain">读取失败</el-tag>
+              </el-tooltip>
+              <template v-else>
+                <el-tag :type="certificateStatusType(row)" size="small" effect="plain">
+                  {{ certificateStatusText(row) }}
+                </el-tag>
+                <el-tooltip
+                  v-if="!row.certificateInfo.matchesHost"
+                  :content="certificateDomainTip(row)"
+                  placement="top"
+                >
+                  <el-tag type="warning" size="small" effect="plain">域名不匹配</el-tag>
+                </el-tooltip>
+                <span class="cert-date">到期 {{ formatDate(row.certificateInfo.notAfter) }}</span>
+              </template>
+            </div>
+            <span v-else class="muted">未检测</span>
+          </template>
+        </el-table-column>
         <el-table-column v-if="!auth.isAdmin" label="权限" width="90" align="center">
           <template #default="{ row }">
             <el-tag v-if="row.canManage" type="success" size="small" effect="plain">可操作</el-tag>
@@ -264,7 +291,8 @@ const rulesDef: FormRules = {
     { required: true, message: '请输入目标地址', trigger: 'blur' },
     {
       validator: (_rule, value, callback) => {
-        if (!/^http:\/\/.+/i.test(value)) callback(new Error('目标地址必须是 HTTP URL'))
+        const result = validateTargetUrl(value)
+        if (result) callback(new Error(result))
         else callback()
       },
       trigger: 'blur'
@@ -363,6 +391,50 @@ function certificateModeLabel(mode: string) {
   if (mode === 'pfx' || mode === 'uploaded') return 'IIS证书'
   if (mode === 'pem') return 'Nginx证书'
   return '默认证书'
+}
+
+function validateTargetUrl(value: string) {
+  if (!value) return '请输入目标地址'
+
+  let url: URL
+  try {
+    url = new URL(value)
+  } catch {
+    return '目标地址必须是完整 HTTP URL，例如 http://192.168.1.10:8080'
+  }
+
+  if (url.protocol !== 'http:') return '目标地址仅支持 http://'
+  if (!url.hostname) return '目标地址必须包含主机名或 IP'
+  if (url.username || url.password) return '目标地址不能包含用户名或密码'
+  if (url.hash) return '目标地址不能包含 #fragment'
+  return ''
+}
+
+function certificateStatusType(row: HttpsProxyRule) {
+  const info = row.certificateInfo
+  if (!info || info.error || info.isExpired) return 'danger'
+  if (info.isExpiringSoon || !info.matchesHost) return 'warning'
+  return 'success'
+}
+
+function certificateStatusText(row: HttpsProxyRule) {
+  const info = row.certificateInfo
+  if (!info) return '未检测'
+  if (info.isExpired) return '已过期'
+  if (info.isExpiringSoon) return `${info.daysRemaining} 天后到期`
+  return '有效'
+}
+
+function certificateDomainTip(row: HttpsProxyRule) {
+  const info = row.certificateInfo
+  if (!info) return ''
+  const domains = info.domains.length > 0 ? info.domains.join(', ') : '证书未包含 DNS 域名'
+  return `当前访问域名 ${info.host || hostName} 与证书域名不匹配：${domains}`
+}
+
+function formatDate(value: string) {
+  if (!value || value.startsWith('0001-')) return '-'
+  return new Date(value).toLocaleDateString()
 }
 
 function normalizeCertificateMode(mode?: string) {
@@ -495,6 +567,18 @@ onMounted(() => {
   align-items: center;
   min-width: 40px;
   justify-content: center;
+}
+
+.cert-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cert-date {
+  color: #606266;
+  font-size: 12px;
 }
 
 .form-hint {

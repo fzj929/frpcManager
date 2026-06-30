@@ -13,6 +13,19 @@ public record WakeOnLanResponse(
     string Message
 );
 
+public record WakePingRequest(
+    string Host,
+    int TimeoutMs
+);
+
+public record WakePingResponse(
+    string Host,
+    bool IsOnline,
+    long? RoundtripTimeMs,
+    string Status,
+    string Message
+);
+
 public record WakeLogResponse(
     int Id,
     string MacAddress,

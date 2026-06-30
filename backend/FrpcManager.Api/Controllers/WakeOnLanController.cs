@@ -6,6 +6,7 @@ using FrpcManager.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 
 namespace FrpcManager.Api.Controllers;
@@ -31,6 +32,45 @@ public class WakeOnLanController : ControllerBase
     public async Task<IActionResult> Wake([FromBody] WakeOnLanRequest? request)
     {
         return await WakeCore(request, "manual");
+    }
+
+    [HttpPost("ping")]
+    public async Task<IActionResult> Ping([FromBody] WakePingRequest? request)
+    {
+        if (request == null)
+            return BadRequest(new { message = "请输入要测试的 IP 或域名" });
+
+        string host;
+        try
+        {
+            host = WakeOnLanService.NormalizePingHost(request.Host);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+
+        try
+        {
+            var reply = await _wakeOnLanService.PingAsync(host, request.TimeoutMs);
+            var online = reply.Status == IPStatus.Success;
+            var message = online
+                ? $"主机在线，延迟 {reply.RoundtripTime} ms"
+                : $"未收到响应：{reply.Status}";
+
+            await _auditLogService.LogAsync(HttpContext, "wake-on-lan.ping", host, reply.Status.ToString(), online);
+            return Ok(new WakePingResponse(
+                host,
+                online,
+                online ? reply.RoundtripTime : null,
+                reply.Status.ToString(),
+                message));
+        }
+        catch (PingException ex)
+        {
+            await _auditLogService.LogAsync(HttpContext, "wake-on-lan.ping", host, ex.Message, false);
+            return Ok(new WakePingResponse(host, false, null, "Error", $"Ping 测试失败：{ex.Message}"));
+        }
     }
 
     private async Task<IActionResult> WakeCore(WakeOnLanRequest? request, string source)

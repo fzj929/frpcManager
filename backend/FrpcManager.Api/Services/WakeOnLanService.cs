@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
 
@@ -7,6 +8,7 @@ namespace FrpcManager.Api.Services;
 public class WakeOnLanService
 {
     private static readonly Regex HexMacRegex = new("^[0-9a-fA-F]{12}$", RegexOptions.Compiled);
+    private static readonly Regex HostRegex = new("^[a-zA-Z0-9.-]+$", RegexOptions.Compiled);
 
     public async Task SendMagicPacketAsync(string macAddress, string broadcastAddress, int port)
     {
@@ -38,6 +40,29 @@ public class WakeOnLanService
 
         return string.Join(':', Enumerable.Range(0, 6)
             .Select(i => normalized.Substring(i * 2, 2).ToUpperInvariant()));
+    }
+
+    public async Task<PingReply> PingAsync(string host, int timeoutMs)
+    {
+        var normalizedHost = NormalizePingHost(host);
+        var timeout = Math.Clamp(timeoutMs <= 0 ? 3000 : timeoutMs, 1000, 10000);
+        using var ping = new Ping();
+        return await ping.SendPingAsync(normalizedHost, timeout);
+    }
+
+    public static string NormalizePingHost(string host)
+    {
+        var normalized = host?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(normalized))
+            throw new ArgumentException("请输入要测试的 IP 或域名");
+
+        if (normalized.Length > 253)
+            throw new ArgumentException("主机地址不能超过 253 个字符");
+
+        if (!IPAddress.TryParse(normalized, out _) && !HostRegex.IsMatch(normalized))
+            throw new ArgumentException("主机地址只能填写 IP 或域名");
+
+        return normalized;
     }
 
     private static byte[] ParseMacAddress(string macAddress)

@@ -98,7 +98,7 @@ public class HttpsProxyRuntimeService
         _logger.LogInformation("HTTPS 代理已启动：{Name} https://0.0.0.0:{Port} -> {Target}", rule.Name, rule.ListenPort, targetBaseUri);
     }
 
-    private X509Certificate2 LoadCertificate(HttpsProxyRule rule)
+    public X509Certificate2 LoadCertificate(HttpsProxyRule rule)
     {
         if (rule.CertificateMode == "pfx" && !string.IsNullOrWhiteSpace(rule.CertificatePath))
             return new X509Certificate2(rule.CertificatePath, rule.CertificatePassword);

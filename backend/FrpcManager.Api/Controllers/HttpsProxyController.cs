@@ -1,3 +1,4 @@
+using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
 using FrpcManager.Api.Data;
 using FrpcManager.Api.DTOs;
@@ -42,7 +43,8 @@ public class HttpsProxyController : ControllerBase
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
 
-        return Ok(rules.Select(r => ToResponse(r, _userContext.UserId, _userContext.IsAdmin)));
+        var host = Request.Host.Host;
+        return Ok(rules.Select(r => ToResponse(r, _userContext.UserId, _userContext.IsAdmin, host)));
     }
 
     [HttpPost]
@@ -99,7 +101,7 @@ public class HttpsProxyController : ControllerBase
         if (createdFrpChannel != null)
             await _auditLogService.LogAsync(HttpContext, "proxy.create", createdFrpChannel.Name, $"tcp:127.0.0.1:{rule.ListenPort}->{rule.ListenPort}");
 
-        return Ok(ToResponse(rule, _userContext.UserId, _userContext.IsAdmin));
+        return Ok(ToResponse(rule, _userContext.UserId, _userContext.IsAdmin, Request.Host.Host));
     }
 
     [HttpPut("{id:int}")]
@@ -137,7 +139,7 @@ public class HttpsProxyController : ControllerBase
             return startError;
 
         await _auditLogService.LogAsync(HttpContext, "https-proxy.update", rule.Name, $"{rule.ListenPort}->{rule.TargetUrl}");
-        return Ok(ToResponse(rule, _userContext.UserId, _userContext.IsAdmin));
+        return Ok(ToResponse(rule, _userContext.UserId, _userContext.IsAdmin, Request.Host.Host));
     }
 
     [HttpDelete("{id:int}")]
@@ -184,7 +186,7 @@ public class HttpsProxyController : ControllerBase
         }
 
         await _auditLogService.LogAsync(HttpContext, "https-proxy.enable", rule.Name);
-        return Ok(ToResponse(rule, _userContext.UserId, _userContext.IsAdmin));
+        return Ok(ToResponse(rule, _userContext.UserId, _userContext.IsAdmin, Request.Host.Host));
     }
 
     [HttpPut("{id:int}/disable")]
@@ -203,7 +205,7 @@ public class HttpsProxyController : ControllerBase
         await _db.SaveChangesAsync();
         await _runtime.StopAsync(rule.Id);
         await _auditLogService.LogAsync(HttpContext, "https-proxy.disable", rule.Name);
-        return Ok(ToResponse(rule, _userContext.UserId, _userContext.IsAdmin));
+        return Ok(ToResponse(rule, _userContext.UserId, _userContext.IsAdmin, Request.Host.Host));
     }
 
     [HttpPut("{id:int}/owner")]
@@ -230,7 +232,7 @@ public class HttpsProxyController : ControllerBase
         await _db.SaveChangesAsync();
         await _auditLogService.LogAsync(HttpContext, "https-proxy.assign-owner", rule.Name, $"userId={request.UserId?.ToString() ?? "none"}");
 
-        return Ok(ToResponse(rule, _userContext.UserId, _userContext.IsAdmin));
+        return Ok(ToResponse(rule, _userContext.UserId, _userContext.IsAdmin, Request.Host.Host));
     }
 
     private async Task<BadRequestObjectResult?> ValidateRequestAsync(HttpsProxyRuleRequest request, int? currentId = null)
@@ -244,8 +246,9 @@ public class HttpsProxyController : ControllerBase
         if (request.ListenPort is 6887 or 6888)
             return BadRequest(new { message = "监听端口不能使用管理平台端口 6887/6888" });
 
-        if (!Uri.TryCreate(request.TargetUrl, UriKind.Absolute, out var targetUri) || targetUri.Scheme != Uri.UriSchemeHttp)
-            return BadRequest(new { message = "目标地址必须是 HTTP URL，例如 http://192.168.1.10:8080" });
+        var targetUrlValidation = ValidateTargetUrl(request.TargetUrl);
+        if (targetUrlValidation != null)
+            return targetUrlValidation;
 
         if (request.IsEnabled)
         {
@@ -382,6 +385,33 @@ public class HttpsProxyController : ControllerBase
         return uri.ToString().TrimEnd('/');
     }
 
+    private BadRequestObjectResult? ValidateTargetUrl(string targetUrl)
+    {
+        if (string.IsNullOrWhiteSpace(targetUrl))
+            return BadRequest(new { message = "请输入目标 HTTP 地址" });
+
+        var trimmed = targetUrl.Trim();
+        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) || !uri.IsAbsoluteUri)
+            return BadRequest(new { message = "目标地址必须是完整 HTTP URL，例如 http://192.168.1.10:8080" });
+
+        if (uri.Scheme != Uri.UriSchemeHttp)
+            return BadRequest(new { message = "目标地址仅支持 http://，HTTPS 由本代理对外提供" });
+
+        if (string.IsNullOrWhiteSpace(uri.Host))
+            return BadRequest(new { message = "目标地址必须包含主机名或 IP" });
+
+        if (!string.IsNullOrEmpty(uri.UserInfo))
+            return BadRequest(new { message = "目标地址不能包含用户名或密码" });
+
+        if (!string.IsNullOrEmpty(uri.Fragment))
+            return BadRequest(new { message = "目标地址不能包含 #fragment" });
+
+        if (!Uri.IsWellFormedUriString(trimmed, UriKind.Absolute))
+            return BadRequest(new { message = "目标地址格式不正确" });
+
+        return null;
+    }
+
     private static async Task<string> SaveCertificateAsync(IFormFile certificate)
     {
         var certDir = Path.Combine(AppContext.BaseDirectory, "data", "certs");
@@ -419,7 +449,89 @@ public class HttpsProxyController : ControllerBase
         };
     }
 
-    private static HttpsProxyRuleResponse ToResponse(HttpsProxyRule rule, int? currentUserId, bool isAdmin) => new(
+    private HttpsProxyCertificateInfo? GetCertificateInfo(HttpsProxyRule rule, string host)
+    {
+        try
+        {
+            using var certificate = _runtime.LoadCertificate(rule);
+            var domains = GetCertificateDomains(certificate);
+            var normalizedHost = NormalizeHostForCertificate(host);
+            var notAfterUtc = certificate.NotAfter.ToUniversalTime();
+            var daysRemaining = (int)Math.Floor((notAfterUtc - DateTime.UtcNow).TotalDays);
+
+            return new HttpsProxyCertificateInfo(
+                certificate.Subject,
+                certificate.Issuer,
+                certificate.NotBefore.ToUniversalTime(),
+                notAfterUtc,
+                daysRemaining,
+                DateTime.UtcNow > notAfterUtc,
+                daysRemaining <= 30,
+                !string.IsNullOrWhiteSpace(normalizedHost) && domains.Any(d => CertificateDomainMatches(d, normalizedHost)),
+                normalizedHost,
+                domains,
+                null);
+        }
+        catch (Exception ex)
+        {
+            return new HttpsProxyCertificateInfo(
+                "",
+                "",
+                DateTime.MinValue,
+                DateTime.MinValue,
+                0,
+                false,
+                false,
+                false,
+                NormalizeHostForCertificate(host),
+                [],
+                ex.Message);
+        }
+    }
+
+    private static List<string> GetCertificateDomains(X509Certificate2 certificate)
+    {
+        var domains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var extension in certificate.Extensions)
+        {
+            if (extension.Oid?.Value != "2.5.29.17")
+                continue;
+
+            var formatted = extension.Format(false);
+            foreach (Match match in Regex.Matches(formatted, @"DNS Name=(?<name>[^,\r\n]+)", RegexOptions.IgnoreCase))
+                domains.Add(match.Groups["name"].Value.Trim());
+        }
+
+        var dnsName = certificate.GetNameInfo(X509NameType.DnsName, false);
+        if (!string.IsNullOrWhiteSpace(dnsName))
+            domains.Add(dnsName.Trim());
+
+        return domains.Where(d => !string.IsNullOrWhiteSpace(d)).OrderBy(d => d).ToList();
+    }
+
+    private static string NormalizeHostForCertificate(string host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+            return "";
+
+        return host.Trim().TrimEnd('.').ToLowerInvariant();
+    }
+
+    private static bool CertificateDomainMatches(string pattern, string host)
+    {
+        var normalizedPattern = NormalizeHostForCertificate(pattern);
+        if (string.IsNullOrWhiteSpace(normalizedPattern) || string.IsNullOrWhiteSpace(host))
+            return false;
+
+        if (!normalizedPattern.StartsWith("*."))
+            return string.Equals(normalizedPattern, host, StringComparison.OrdinalIgnoreCase);
+
+        var suffix = normalizedPattern[1..];
+        return host.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) &&
+               host.Count(c => c == '.') == suffix.Count(c => c == '.');
+    }
+
+    private HttpsProxyRuleResponse ToResponse(HttpsProxyRule rule, int? currentUserId, bool isAdmin, string host) => new(
         rule.Id,
         rule.Name,
         rule.ListenPort,
@@ -432,6 +544,7 @@ public class HttpsProxyController : ControllerBase
         rule.CreatedByUserId,
         rule.CreatedByUser?.Username ?? "",
         isAdmin || (currentUserId.HasValue && rule.CreatedByUserId == currentUserId.Value),
+        GetCertificateInfo(rule, host),
         rule.CreatedAt,
         rule.UpdatedAt);
 }
