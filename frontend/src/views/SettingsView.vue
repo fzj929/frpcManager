@@ -164,7 +164,7 @@
             </div>
           </template>
           <el-descriptions :column="1">
-            <el-descriptions-item label="版本">v1.4.4</el-descriptions-item>
+            <el-descriptions-item label="版本">v1.5.0</el-descriptions-item>
             <el-descriptions-item label="项目地址">
               <el-link
                 type="primary"
